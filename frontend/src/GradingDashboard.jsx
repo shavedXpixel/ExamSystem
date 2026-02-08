@@ -3,7 +3,8 @@ import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import { User, CheckCircle, XCircle, Save } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
+// (Make sure there is NO slash at the end!)
 
 const GradingDashboard = () => {
     const { examId } = useParams(); // Get Exam ID from URL

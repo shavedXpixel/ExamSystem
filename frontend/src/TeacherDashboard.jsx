@@ -3,7 +3,8 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; // <-- Import for navigation
 import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000'; 
+const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
+// (Make sure there is NO slash at the end!)
 
 const TeacherDashboard = () => {
     const navigate = useNavigate(); // <-- Hook to change pages

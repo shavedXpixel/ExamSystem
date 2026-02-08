@@ -3,7 +3,8 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { CheckCircle, Clock, AlertCircle, Loader2, Send, BookOpen } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000'; 
+const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
+// (Make sure there is NO slash at the end!) 
 
 const ExamPage = () => {
     const { examId } = useParams();

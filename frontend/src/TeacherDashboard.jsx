@@ -76,7 +76,7 @@ const TeacherDashboard = () => {
     const addNewSubject = () => {
         if (!newSubjectName.trim()) return;
         setDropdownSubjects(prev => [...prev, newSubjectName]);
-        setSelectedSubject(newSubjectName);
+        setSelectedSubject(newSubjectName); // Select immediately
         setNewSubjectName("");
         setIsAddingSubject(false);
     };
@@ -98,7 +98,10 @@ const TeacherDashboard = () => {
         setLoading(true);
         try {
             const response = await axios.post(`${API_URL}/api/create-exam`, {
-                title, subject: selectedSubject, questions, teacherId: user.uid
+                title, 
+                subject: selectedSubject, 
+                questions, 
+                teacherId: user.uid
             });
             setCreatedExamId(response.data.id);
             setTitle('');
@@ -137,6 +140,8 @@ const TeacherDashboard = () => {
                         <div className="profile-meta">
                             <Building size={14} /> 
                             <span>{teacherProfile?.college || user?.email}</span>
+                            
+                            {/* Edit Profile Button */}
                             <button onClick={() => navigate('/profile')} className="icon-btn-small" title="Edit Profile">
                                 <UserPen size={14} />
                             </button>
@@ -271,7 +276,16 @@ const TeacherDashboard = () => {
                                     </div>
                                     <div className="exam-actions">
                                         <button onClick={() => copyToClipboard(exam.id)} title="Copy ID"><Copy size={16} /></button>
-                                        <button className="grade-btn" onClick={() => navigate(`/grade/${exam.id}`)} title="Grade"><GraduationCap size={16} /></button>
+                                        
+                                        {/* VIEW RESULTS BUTTON */}
+                                        <button 
+                                            className="grade-btn" 
+                                            onClick={() => navigate(`/grade/${exam.id}`)} 
+                                            title="View Results & Students"
+                                        >
+                                            <GraduationCap size={16} />
+                                            <span>Results</span>
+                                        </button>
                                     </div>
                                 </div>
                             ))
@@ -363,8 +377,9 @@ const TeacherDashboard = () => {
                 .exam-meta { display: flex; gap: 10px; font-size: 0.8rem; }
                 .badge { background: #222; padding: 2px 8px; border-radius: 4px; color: #aaa; }
                 .exam-actions { display: flex; gap: 8px; }
-                .exam-actions button { background: #111; border: 1px solid #333; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
+                .exam-actions button { background: #111; border: 1px solid #333; color: #fff; height: 32px; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
                 .exam-actions button:hover { border-color: #fff; }
+                .grade-btn { width: auto; padding: 0 15px; gap: 8px; }
                 .grade-btn:hover { background: #00f3ff; color: black; border-color: #00f3ff !important; }
 
                 /* Success Banner */

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { auth } from './firebaseConfig'; // Make sure this path is correct
+import { auth } from './firebaseConfig';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen } from 'lucide-react';
+import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen, User } from 'lucide-react';
 
 // CHANGE THIS TO YOUR RENDER URL
 const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
 
-const SUBJECTS = [
+const DEFAULT_SUBJECTS = [
     "Mathematics", "Physics", "Chemistry", "Biology", "Computer Science",
     "English", "History", "Geography", "Hindi", "General Knowledge"
 ];
@@ -18,9 +18,14 @@ const TeacherDashboard = () => {
     const [user, setUser] = useState(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
 
+    // Subject State
+    const [subjects, setSubjects] = useState(DEFAULT_SUBJECTS);
+    const [selectedSubject, setSelectedSubject] = useState(DEFAULT_SUBJECTS[0]);
+    const [isAddingSubject, setIsAddingSubject] = useState(false);
+    const [newSubjectName, setNewSubjectName] = useState("");
+
     // Exam Creation States
     const [title, setTitle] = useState('');
-    const [selectedSubject, setSelectedSubject] = useState(SUBJECTS[0]);
     const [questions, setQuestions] = useState([]);
     const [createdExamId, setCreatedExamId] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -34,9 +39,9 @@ const TeacherDashboard = () => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
-                fetchHistory(currentUser.uid); // Load ONLY this teacher's exams
+                fetchHistory(currentUser.uid);
             } else {
-                navigate('/login'); // Kick out if not logged in
+                navigate('/login');
             }
             setLoadingAuth(false);
         });
@@ -47,6 +52,10 @@ const TeacherDashboard = () => {
         try {
             const res = await axios.get(`${API_URL}/api/exams?teacherId=${userId}`);
             setAllExams(res.data);
+            
+            // Optional: Auto-add subjects from history if they aren't in the list
+            const usedSubjects = [...new Set(res.data.map(e => e.subject))];
+            setSubjects(prev => [...new Set([...prev, ...usedSubjects])]);
         } catch (err) {
             console.error("Failed to load history", err);
         }
@@ -55,6 +64,15 @@ const TeacherDashboard = () => {
     const handleLogout = async () => {
         await signOut(auth);
         navigate('/login');
+    };
+
+    // --- SUBJECT LOGIC ---
+    const addNewSubject = () => {
+        if (!newSubjectName.trim()) return;
+        setSubjects([...subjects, newSubjectName]);
+        setSelectedSubject(newSubjectName); // Auto-select the new one
+        setNewSubjectName("");
+        setIsAddingSubject(false);
     };
 
     // --- EXAM LOGIC ---
@@ -82,13 +100,13 @@ const TeacherDashboard = () => {
                 title,
                 subject: selectedSubject,
                 questions,
-                teacherId: user.uid // <-- Attach Teacher ID so we know who owns it
+                teacherId: user.uid
             });
             
             setCreatedExamId(response.data.id);
             setTitle('');
             setQuestions([]);
-            fetchHistory(user.uid); // Refresh history list immediately
+            fetchHistory(user.uid);
         } catch (error) {
             console.error(error);
             alert("Failed to save exam.");
@@ -113,9 +131,12 @@ const TeacherDashboard = () => {
         <div style={styles.container}>
             {/* HEADER */}
             <div style={styles.topBar}>
-                <div>
-                    <h1 style={styles.header}>Teacher Dashboard 👨‍🏫</h1>
-                    <p style={{color:'#666', margin:0}}>Welcome, {user?.email}</p>
+                <div style={{display:'flex', alignItems:'center', gap: 15}}>
+                    <div style={styles.avatar}>{user?.email[0].toUpperCase()}</div>
+                    <div>
+                        <h1 style={styles.header}>Teacher Dashboard</h1>
+                        <p style={{color:'#666', margin:0, fontSize: '0.9rem'}}>{user?.email}</p>
+                    </div>
                 </div>
                 <button onClick={handleLogout} style={styles.logoutButton}>
                     <LogOut size={18} /> Logout
@@ -159,14 +180,37 @@ const TeacherDashboard = () => {
                         <Plus size={24} color="#00f3ff"/> Create New Exam
                     </h2>
                     
+                    {/* DYNAMIC SUBJECT SELECTOR */}
                     <label style={styles.label}>Subject</label>
-                    <select 
-                        style={styles.select} 
-                        value={selectedSubject}
-                        onChange={e => setSelectedSubject(e.target.value)}
-                    >
-                        {SUBJECTS.map(sub => <option key={sub} value={sub}>{sub}</option>)}
-                    </select>
+                    <div style={{display: 'flex', gap: '10px', marginBottom: '15px'}}>
+                        <select 
+                            style={styles.select} 
+                            value={selectedSubject}
+                            onChange={e => setSelectedSubject(e.target.value)}
+                        >
+                            {subjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                        </select>
+                        <button 
+                            onClick={() => setIsAddingSubject(!isAddingSubject)} 
+                            style={styles.iconBtnPrimary}
+                            title="Add New Subject"
+                        >
+                            <Plus size={20} />
+                        </button>
+                    </div>
+
+                    {/* Add New Subject Popup Input */}
+                    {isAddingSubject && (
+                        <div style={styles.newSubjectBox}>
+                            <input 
+                                style={styles.miniInput} 
+                                placeholder="Enter Subject Name..."
+                                value={newSubjectName}
+                                onChange={e => setNewSubjectName(e.target.value)}
+                            />
+                            <button onClick={addNewSubject} style={styles.miniBtn}>Add</button>
+                        </div>
+                    )}
 
                     <label style={styles.label}>Exam Title</label>
                     <input 
@@ -242,7 +286,7 @@ const TeacherDashboard = () => {
                         >
                             All
                         </button>
-                        {SUBJECTS.map(sub => (
+                        {subjects.map(sub => (
                             <button 
                                 key={sub}
                                 style={historyFilter === sub ? styles.filterActive : styles.filterBtn}
@@ -291,8 +335,9 @@ const TeacherDashboard = () => {
 const styles = {
     container: { minHeight: '100vh', background: '#0a0a0a', padding: '40px', fontFamily: "'Space Grotesk', sans-serif" },
     topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' },
-    header: { margin: 0, background: 'linear-gradient(90deg, #00f3ff, #bc13fe)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
-    logoutButton: { background: '#333', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center' },
+    header: { margin: 0, fontSize: '1.8rem', background: 'linear-gradient(90deg, #00f3ff, #bc13fe)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+    avatar: { width: 40, height: 40, borderRadius: '50%', background: '#bc13fe', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '1.2rem' },
+    logoutButton: { background: '#222', color: '#ff4444', border: '1px solid #333', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center' },
     
     grid: { display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '30px', maxWidth: '1400px', margin: '0 auto' },
     
@@ -303,7 +348,12 @@ const styles = {
     // Inputs
     label: { color: '#888', fontSize: '0.9rem', marginBottom: '5px', display: 'block' },
     input: { width: '100%', padding: '12px', marginBottom: '15px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none', boxSizing: 'border-box' },
-    select: { width: '100%', padding: '12px', marginBottom: '15px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none' },
+    select: { flex: 1, padding: '12px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none' },
+
+    // New Subject Box
+    newSubjectBox: { display: 'flex', gap: '10px', marginBottom: '20px', animation: 'fadeIn 0.3s' },
+    miniInput: { flex: 1, padding: '10px', background: '#000', border: '1px solid #00f3ff', borderRadius: '5px', color: 'white', outline: 'none' },
+    miniBtn: { padding: '0 15px', background: '#00f3ff', color: 'black', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' },
 
     // History Filters
     filterContainer: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' },
@@ -321,8 +371,8 @@ const styles = {
     buttonGroup: { display: 'flex', gap: '15px', marginTop: '20px' },
     primaryButton: { flex: 1, padding: '12px', background: '#00f3ff', color: '#000', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', justifyContent: 'center', gap: '8px' },
     secondaryButton: { flex: 1, padding: '12px', background: 'transparent', color: '#fff', border: '1px solid #444', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' },
-    iconBtn: { padding: '8px', background: '#333', border: 'none', borderRadius: '5px', color: 'white', cursor: 'pointer' },
-    iconBtnPrimary: { padding: '8px', background: '#00f3ff', border: 'none', borderRadius: '5px', color: 'black', cursor: 'pointer' },
+    iconBtn: { padding: '10px', background: '#333', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer' },
+    iconBtnPrimary: { padding: '10px', background: '#00f3ff', border: 'none', borderRadius: '8px', color: 'black', cursor: 'pointer' },
 
     // Success Banner
     successBanner: { maxWidth: '800px', margin: '0 auto 30px', background: 'rgba(0, 255, 136, 0.1)', border: '1px solid #00ff88', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' },

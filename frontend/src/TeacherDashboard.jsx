@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { auth, db } from './firebaseConfig'; 
+import { auth, db } from './firebaseConfig';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore'; 
-import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen, Building, UserPen } from 'lucide-react'; // <-- Added UserPen
+import { doc, getDoc } from 'firebase/firestore';
+import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen, Building, UserPen, Sparkles } from 'lucide-react';
 
 // CHANGE THIS TO YOUR RENDER URL
 const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
@@ -17,13 +17,11 @@ const DEFAULT_SUBJECTS = [
 const TeacherDashboard = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
-    const [teacherProfile, setTeacherProfile] = useState(null); 
+    const [teacherProfile, setTeacherProfile] = useState(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
 
     // Data States
     const [allExams, setAllExams] = useState([]);
-    
-    // Dropdown Subjects
     const [dropdownSubjects, setDropdownSubjects] = useState(DEFAULT_SUBJECTS);
     
     // Selection States
@@ -45,17 +43,11 @@ const TeacherDashboard = () => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
-                
-                // Fetch Teacher Profile
                 try {
                     const docRef = doc(db, "teachers", currentUser.uid);
                     const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) {
-                        setTeacherProfile(docSnap.data());
-                    }
-                } catch (e) {
-                    console.error("Error fetching profile:", e);
-                }
+                    if (docSnap.exists()) setTeacherProfile(docSnap.data());
+                } catch (e) { console.error("Profile Error:", e); }
 
                 fetchHistory(currentUser.uid);
             } else {
@@ -70,13 +62,9 @@ const TeacherDashboard = () => {
         try {
             const res = await axios.get(`${API_URL}/api/exams?teacherId=${userId}`);
             setAllExams(res.data);
-            
-            // Extract unique subjects from PAST exams
             const usedSubjects = [...new Set(res.data.map(e => e.subject))];
             setDropdownSubjects(prev => [...new Set([...DEFAULT_SUBJECTS, ...usedSubjects])]);
-        } catch (err) {
-            console.error("Failed to load history", err);
-        }
+        } catch (err) { console.error(err); }
     };
 
     const handleLogout = async () => {
@@ -84,7 +72,7 @@ const TeacherDashboard = () => {
         navigate('/login');
     };
 
-    // --- SUBJECT LOGIC ---
+    // --- LOGIC HANDLERS ---
     const addNewSubject = () => {
         if (!newSubjectName.trim()) return;
         setDropdownSubjects(prev => [...prev, newSubjectName]);
@@ -93,9 +81,10 @@ const TeacherDashboard = () => {
         setIsAddingSubject(false);
     };
 
-    // --- EXAM LOGIC ---
     const addQuestion = () => setQuestions([...questions, { text: '', type: 'MCQ', options: '', maxMarks: 5 }]);
+    
     const removeQuestion = (index) => setQuestions(questions.filter((_, i) => i !== index));
+    
     const handleQuestionChange = (index, field, value) => {
         const newQuestions = [...questions];
         newQuestions[index][field] = value;
@@ -109,22 +98,14 @@ const TeacherDashboard = () => {
         setLoading(true);
         try {
             const response = await axios.post(`${API_URL}/api/create-exam`, {
-                title,
-                subject: selectedSubject,
-                questions,
-                teacherId: user.uid
+                title, subject: selectedSubject, questions, teacherId: user.uid
             });
-            
             setCreatedExamId(response.data.id);
             setTitle('');
             setQuestions([]);
-            fetchHistory(user.uid); 
-        } catch (error) {
-            console.error(error);
-            alert("Failed to save exam.");
-        } finally {
-            setLoading(false);
-        }
+            fetchHistory(user.uid);
+        } catch (error) { alert("Failed to save exam."); } 
+        finally { setLoading(false); }
     };
 
     const copyToClipboard = (id) => {
@@ -133,172 +114,164 @@ const TeacherDashboard = () => {
     };
 
     const uniqueHistorySubjects = ["All", ...new Set(allExams.map(e => e.subject))];
-    const filteredExams = historyFilter === "All" 
-        ? allExams 
-        : allExams.filter(exam => exam.subject === historyFilter);
+    const filteredExams = historyFilter === "All" ? allExams : allExams.filter(exam => exam.subject === historyFilter);
 
-    if (loadingAuth) return <div style={{color:'white', textAlign:'center', marginTop: 50}}>Loading...</div>;
+    if (loadingAuth) return <div className="loading-screen">Loading Dashboard...</div>;
 
     return (
-        <div style={styles.container}>
+        <div className="dashboard-container">
+            {/* Background Elements */}
+            <div className="bg-glow-1"></div>
+            <div className="bg-glow-2"></div>
+
             {/* HEADER */}
-            <div style={styles.topBar}>
-                <div style={{display:'flex', alignItems:'center', gap: 15}}>
-                    <div style={styles.avatar}>
+            <div className="top-bar glass-panel">
+                <div className="profile-section">
+                    <div className="avatar">
                         {teacherProfile ? teacherProfile.name[0].toUpperCase() : user?.email[0].toUpperCase()}
                     </div>
                     <div>
-                        <h1 style={styles.header}>
-                            Welcome, {teacherProfile ? `Prof. ${teacherProfile.name.split(' ')[0]}` : "Teacher"} 👨‍🏫
+                        <h1 className="welcome-text">
+                            Hello, {teacherProfile ? `Prof. ${teacherProfile.name.split(' ')[0]}` : "Teacher"} <span className="wave">👋</span>
                         </h1>
-                        <div style={{display:'flex', alignItems:'center', gap: 10}}>
-                            <p style={{color:'#888', margin:0, fontSize: '0.9rem', display:'flex', alignItems:'center', gap:5}}>
-                                <Building size={14} /> {teacherProfile?.college || user?.email}
-                            </p>
-                            {/* EDIT PROFILE BUTTON */}
-                            <button 
-                                onClick={() => navigate('/profile')} 
-                                style={styles.editProfileBtn} 
-                                title="Edit Profile"
-                            >
+                        <div className="profile-meta">
+                            <Building size={14} /> 
+                            <span>{teacherProfile?.college || user?.email}</span>
+                            <button onClick={() => navigate('/profile')} className="icon-btn-small" title="Edit Profile">
                                 <UserPen size={14} />
                             </button>
                         </div>
                     </div>
                 </div>
-                <button onClick={handleLogout} style={styles.logoutButton}>
-                    <LogOut size={18} /> Logout
+                <button onClick={handleLogout} className="logout-btn">
+                    <LogOut size={18} /> <span>Logout</span>
                 </button>
             </div>
             
             {/* SUCCESS BANNER */}
             {createdExamId && (
-                <div style={styles.successBanner}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                        <CheckCircle size={32} color="#00ff88" />
+                <div className="success-banner slide-in">
+                    <div className="banner-content">
+                        <div className="icon-box"><CheckCircle size={32} color="#00ff88" /></div>
                         <div>
-                            <h3 style={{margin: 0, color: '#00ff88'}}>Exam Created Successfully!</h3>
-                            <p style={{margin: '5px 0 0', color: '#ccc'}}>Subject: {selectedSubject}</p>
+                            <h3>Exam Created Successfully!</h3>
+                            <p>Subject: {selectedSubject}</p>
                         </div>
                     </div>
-                    
-                    <div style={styles.codeBox}>
-                        <span style={styles.codeText}>{createdExamId}</span>
-                        <button onClick={() => copyToClipboard(createdExamId)} style={styles.copyButton}><Copy size={18} /> Copy</button>
+                    <div className="code-display">
+                        <span>{createdExamId}</span>
+                        <button onClick={() => copyToClipboard(createdExamId)}><Copy size={16} /> Copy</button>
                     </div>
-
-                    <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
-                        <button onClick={() => navigate(`/grade/${createdExamId}`)} style={styles.actionButton}>
-                            <GraduationCap size={18} /> Open Grading
-                        </button>
-                        <button onClick={() => window.open(`/exam/${createdExamId}`, '_blank')} style={styles.outlineButton}>
-                            <ExternalLink size={18} /> Test Link
-                        </button>
+                    <div className="banner-actions">
+                        <button onClick={() => navigate(`/grade/${createdExamId}`)} className="btn-primary-small"><GraduationCap size={16} /> Grading</button>
+                        <button onClick={() => window.open(`/exam/${createdExamId}`, '_blank')} className="btn-outline-small"><ExternalLink size={16} /> Test Link</button>
+                        <button onClick={() => setCreatedExamId(null)} className="btn-text-small">Dismiss</button>
                     </div>
-                    <button onClick={() => setCreatedExamId(null)} style={styles.closeButton}>Create Another</button>
                 </div>
             )}
 
             {/* MAIN GRID */}
-            <div style={styles.grid}>
+            <div className="main-grid">
                 
                 {/* --- LEFT: CREATE EXAM --- */}
-                <div style={styles.card}>
-                    <h2 style={{marginTop: 0, color: '#fff', display:'flex', alignItems:'center', gap:10}}>
-                        <Plus size={24} color="#00f3ff"/> Create New Exam
+                <div className="card create-card fade-in">
+                    <h2 className="card-title">
+                        <Sparkles size={22} color="#00f3ff"/> Create New Exam
                     </h2>
                     
-                    <label style={styles.label}>Subject</label>
-                    <div style={{display: 'flex', gap: '10px', marginBottom: '15px'}}>
-                        <select 
-                            style={styles.select} 
-                            value={selectedSubject}
-                            onChange={e => setSelectedSubject(e.target.value)}
-                        >
-                            {dropdownSubjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
-                        </select>
-                        <button onClick={() => setIsAddingSubject(!isAddingSubject)} style={styles.iconBtnPrimary} title="Add New Subject"><Plus size={20} /></button>
+                    <div className="form-group">
+                        <label>Subject</label>
+                        <div className="subject-row">
+                            <select value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)} className="custom-select">
+                                {dropdownSubjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                            </select>
+                            <button onClick={() => setIsAddingSubject(!isAddingSubject)} className="add-subject-btn" title="Add Subject">
+                                <Plus size={20} />
+                            </button>
+                        </div>
+                        
+                        {isAddingSubject && (
+                            <div className="new-subject-popup slide-down">
+                                <input placeholder="New Subject Name..." value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} />
+                                <button onClick={addNewSubject}>Add</button>
+                            </div>
+                        )}
                     </div>
 
-                    {isAddingSubject && (
-                        <div style={styles.newSubjectBox}>
-                            <input style={styles.miniInput} placeholder="Enter Subject Name..." value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} />
-                            <button onClick={addNewSubject} style={styles.miniBtn}>Add</button>
-                        </div>
-                    )}
+                    <div className="form-group">
+                        <label>Exam Title</label>
+                        <input className="custom-input" placeholder="e.g. Mid-Term Physics Assessment" value={title} onChange={e => setTitle(e.target.value)} />
+                    </div>
 
-                    <label style={styles.label}>Exam Title</label>
-                    <input style={styles.input} placeholder="e.g., Mid-Term Physics Assessment" value={title} onChange={e => setTitle(e.target.value)} />
+                    <div className="questions-container">
+                        {questions.map((q, index) => (
+                            <div key={index} className="question-box slide-up" style={{animationDelay: `${index * 0.1}s`}}>
+                                <div className="q-header">
+                                    <h4>Question {index + 1}</h4>
+                                    <Trash2 size={18} className="delete-icon" onClick={() => removeQuestion(index)} />
+                                </div>
+                                <input className="custom-input q-text" placeholder="Type Question Here..." value={q.text} onChange={e => handleQuestionChange(index, 'text', e.target.value)} />
+                                
+                                <div className="q-meta-row">
+                                    <select className="custom-select" value={q.type} onChange={e => handleQuestionChange(index, 'type', e.target.value)}>
+                                        <option value="MCQ">Multiple Choice</option>
+                                        <option value="Text">Written Answer</option>
+                                    </select>
+                                    <input type="number" className="custom-input marks-input" placeholder="Marks" value={q.maxMarks} onChange={e => handleQuestionChange(index, 'maxMarks', e.target.value)} />
+                                </div>
 
-                    {questions.map((q, index) => (
-                        <div key={index} style={styles.questionBox}>
-                            <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                                <h4 style={{margin: '0 0 10px 0', color: '#aaa'}}>Question {index + 1}</h4>
-                                <Trash2 size={18} color="#ff4444" style={{cursor:'pointer'}} onClick={() => removeQuestion(index)} />
+                                {q.type === 'MCQ' && (
+                                    <input className="custom-input options-input" placeholder="Options (Comma separated: A,B,C,D)" value={q.options} onChange={e => handleQuestionChange(index, 'options', e.target.value)} />
+                                )}
                             </div>
-                            <input style={styles.input} placeholder="Type Question Here..." value={q.text} onChange={e => handleQuestionChange(index, 'text', e.target.value)} />
-                            <div style={{display: 'flex', gap: '10px', marginBottom: '10px'}}>
-                                <select style={styles.select} value={q.type} onChange={e => handleQuestionChange(index, 'type', e.target.value)}>
-                                    <option value="MCQ">Multiple Choice</option>
-                                    <option value="Text">Written Answer</option>
-                                </select>
-                                <input type="number" placeholder="Marks" style={{...styles.input, width: '80px', marginBottom: 0}} value={q.maxMarks} onChange={e => handleQuestionChange(index, 'maxMarks', e.target.value)} />
-                            </div>
-                            {q.type === 'MCQ' && (
-                                <input style={styles.input} placeholder="Options (A,B,C,D)" value={q.options} onChange={e => handleQuestionChange(index, 'options', e.target.value)} />
-                            )}
-                        </div>
-                    ))}
+                        ))}
+                    </div>
 
-                    <div style={styles.buttonGroup}>
-                        <button onClick={addQuestion} style={styles.secondaryButton}><Plus size={18} /> Add Question</button>
-                        <button onClick={saveExam} style={styles.primaryButton} disabled={loading}>
+                    <div className="action-buttons">
+                        <button onClick={addQuestion} className="btn-secondary"><Plus size={18} /> Add Question</button>
+                        <button onClick={saveExam} className="btn-primary" disabled={loading}>
                             {loading ? 'Saving...' : <><Save size={18} /> Save Exam</>}
                         </button>
                     </div>
                 </div>
 
-                {/* --- RIGHT: HISTORY (Dynamic) --- */}
-                <div style={styles.historyCard}>
-                    <h2 style={{marginTop: 0, color: '#00f3ff', display:'flex', alignItems:'center', gap:10}}>
-                        <Folder size={24} /> Exam History
+                {/* --- RIGHT: HISTORY --- */}
+                <div className="card history-card fade-in">
+                    <h2 className="card-title">
+                        <Folder size={22} color="#bc13fe" /> Exam History
                     </h2>
                     
-                    <div style={styles.filterContainer}>
-                        {uniqueHistorySubjects.length === 1 ? (
-                            <p style={{color: '#666', fontSize: '0.9rem', fontStyle: 'italic'}}>No exams created yet.</p>
-                        ) : (
-                            uniqueHistorySubjects.map(sub => (
-                                <button 
-                                    key={sub} 
-                                    style={historyFilter === sub ? styles.filterActive : styles.filterBtn} 
-                                    onClick={() => setHistoryFilter(sub)}
-                                >
-                                    {sub}
-                                </button>
-                            ))
-                        )}
+                    <div className="filter-tags">
+                        {uniqueHistorySubjects.map(sub => (
+                            <button 
+                                key={sub} 
+                                className={`tag ${historyFilter === sub ? 'active' : ''}`}
+                                onClick={() => setHistoryFilter(sub)}
+                            >
+                                {sub}
+                            </button>
+                        ))}
                     </div>
 
-                    <div style={styles.examList}>
+                    <div className="exam-list custom-scroll">
                         {filteredExams.length === 0 ? (
-                            <div style={{textAlign:'center', padding: 20, color:'#555'}}>
-                                <BookOpen size={40} style={{marginBottom:10, opacity:0.5}} />
+                            <div className="empty-state">
+                                <BookOpen size={40} />
                                 <p>No exams found.</p>
                             </div>
                         ) : (
-                            filteredExams.map(exam => (
-                                <div key={exam.id} style={styles.examItem}>
-                                    <div>
-                                        <div style={styles.examTitle}>{exam.title}</div>
-                                        <div style={styles.examMeta}>
-                                            <span style={styles.subjectTag}>{exam.subject || "General"}</span>
-                                            <span style={{color:'#666'}}>{exam.totalMarks} Marks</span>
+                            filteredExams.map((exam, idx) => (
+                                <div key={exam.id} className="exam-item slide-in-right" style={{animationDelay: `${idx * 0.05}s`}}>
+                                    <div className="exam-info">
+                                        <div className="exam-title">{exam.title}</div>
+                                        <div className="exam-meta">
+                                            <span className="badge">{exam.subject}</span>
+                                            <span className="marks">{exam.totalMarks} Marks</span>
                                         </div>
                                     </div>
-                                    <div style={{display:'flex', gap: '8px'}}>
-                                        <button onClick={() => copyToClipboard(exam.id)} style={styles.iconBtn} title="Copy ID"><Copy size={16} /></button>
-                                        <button onClick={() => navigate(`/grade/${exam.id}`)} style={styles.iconBtnPrimary} title="Grade"><GraduationCap size={16} /></button>
+                                    <div className="exam-actions">
+                                        <button onClick={() => copyToClipboard(exam.id)} title="Copy ID"><Copy size={16} /></button>
+                                        <button className="grade-btn" onClick={() => navigate(`/grade/${exam.id}`)} title="Grade"><GraduationCap size={16} /></button>
                                     </div>
                                 </div>
                             ))
@@ -306,50 +279,125 @@ const TeacherDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* --- PREMIUM CSS STYLES --- */}
+            <style>{`
+                /* Global & Layout */
+                .dashboard-container { min-height: 100vh; background: #050505; color: white; padding: 30px; font-family: 'Space Grotesk', sans-serif; position: relative; overflow-x: hidden; }
+                .bg-glow-1 { position: fixed; top: -10%; left: -10%; width: 500px; height: 500px; background: radial-gradient(circle, rgba(0, 243, 255, 0.15) 0%, transparent 70%); filter: blur(100px); z-index: 0; pointer-events: none; animation: float 10s infinite; }
+                .bg-glow-2 { position: fixed; bottom: -10%; right: -10%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(188, 19, 254, 0.15) 0%, transparent 70%); filter: blur(100px); z-index: 0; pointer-events: none; animation: float 12s infinite reverse; }
+                
+                /* Glassmorphism Panel */
+                .glass-panel, .card {
+                    background: rgba(20, 20, 20, 0.6);
+                    backdrop-filter: blur(12px);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 20px;
+                    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+                    position: relative;
+                    z-index: 1;
+                }
+
+                /* Top Bar */
+                .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; margin-bottom: 40px; }
+                .profile-section { display: flex; align-items: center; gap: 20px; }
+                .avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00f3ff, #bc13fe); color: black; font-weight: bold; font-size: 1.5rem; display: flex; justify-content: center; align-items: center; border: 2px solid white; box-shadow: 0 0 15px rgba(0, 243, 255, 0.5); }
+                .welcome-text { margin: 0; font-size: 1.5rem; background: linear-gradient(90deg, #fff, #aaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+                .profile-meta { display: flex; align-items: center; gap: 10px; color: #888; font-size: 0.9rem; margin-top: 5px; }
+                .icon-btn-small { background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; color: #00f3ff; cursor: pointer; transition: 0.2s; }
+                .icon-btn-small:hover { background: #00f3ff; color: black; transform: scale(1.1); }
+                .logout-btn { display: flex; align-items: center; gap: 8px; background: rgba(255, 68, 68, 0.1); color: #ff4444; border: 1px solid rgba(255, 68, 68, 0.2); padding: 10px 20px; border-radius: 12px; cursor: pointer; transition: 0.3s; }
+                .logout-btn:hover { background: #ff4444; color: white; box-shadow: 0 0 15px rgba(255, 68, 68, 0.4); }
+
+                /* Grid Layout */
+                .main-grid { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 30px; max-width: 1600px; margin: 0 auto; }
+                
+                /* Cards */
+                .card { padding: 30px; height: fit-content; transition: 0.3s; }
+                .card-title { margin-top: 0; display: flex; align-items: center; gap: 12px; color: white; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 25px; }
+                .history-card { max-height: 85vh; display: flex; flex-direction: column; }
+
+                /* Inputs & Forms */
+                .form-group { margin-bottom: 20px; }
+                .form-group label { display: block; color: #aaa; margin-bottom: 8px; font-size: 0.9rem; }
+                .custom-input, .custom-select { width: 100%; background: #0a0a0a; border: 1px solid #333; padding: 14px; border-radius: 10px; color: white; outline: none; transition: 0.3s; box-sizing: border-box; }
+                .custom-input:focus, .custom-select:focus { border-color: #00f3ff; box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); }
+                .subject-row { display: flex; gap: 10px; }
+                .add-subject-btn { background: #00f3ff; color: black; border: none; border-radius: 10px; width: 50px; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; }
+                .add-subject-btn:hover { transform: scale(1.05); box-shadow: 0 0 15px #00f3ff; }
+                
+                /* New Subject Popup */
+                .new-subject-popup { margin-top: 10px; display: flex; gap: 10px; background: rgba(0, 243, 255, 0.1); padding: 10px; border-radius: 10px; border: 1px solid #00f3ff; }
+                .new-subject-popup input { flex: 1; background: black; border: none; color: white; padding: 8px; border-radius: 5px; outline: none; }
+                .new-subject-popup button { background: #00f3ff; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+
+                /* Question Box */
+                .questions-container { margin-bottom: 20px; }
+                .question-box { background: rgba(30, 30, 30, 0.5); padding: 20px; border-radius: 12px; margin-bottom: 15px; border-left: 3px solid #bc13fe; transition: 0.3s; }
+                .question-box:hover { background: rgba(40, 40, 40, 0.8); transform: translateX(5px); }
+                .q-header { display: flex; justify-content: space-between; color: #ccc; margin-bottom: 10px; }
+                .delete-icon { color: #666; cursor: pointer; transition: 0.2s; }
+                .delete-icon:hover { color: #ff4444; }
+                .q-meta-row { display: flex; gap: 10px; margin-top: 10px; }
+                .marks-input { width: 100px; }
+                .options-input { margin-top: 10px; border-color: #bc13fe; }
+
+                /* Buttons */
+                .action-buttons { display: flex; gap: 15px; margin-top: 30px; }
+                .btn-primary { flex: 1; padding: 14px; background: linear-gradient(90deg, #00f3ff, #bc13fe); border: none; border-radius: 10px; color: black; font-weight: bold; cursor: pointer; font-size: 1rem; display: flex; justify-content: center; align-items: center; gap: 10px; transition: 0.3s; }
+                .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 0 25px rgba(188, 19, 254, 0.4); }
+                .btn-secondary { flex: 1; padding: 14px; background: transparent; border: 1px solid #555; color: white; border-radius: 10px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; transition: 0.3s; }
+                .btn-secondary:hover { border-color: white; background: rgba(255,255,255,0.05); }
+
+                /* History List */
+                .filter-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+                .tag { background: #111; border: 1px solid #333; color: #888; padding: 6px 12px; border-radius: 20px; cursor: pointer; transition: 0.3s; font-size: 0.85rem; }
+                .tag:hover, .tag.active { border-color: #00f3ff; color: #00f3ff; background: rgba(0, 243, 255, 0.1); box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); }
+                
+                .exam-list { overflow-y: auto; padding-right: 5px; flex: 1; }
+                .custom-scroll::-webkit-scrollbar { width: 5px; }
+                .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
+                .exam-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 18px; border-radius: 12px; margin-bottom: 12px; border: 1px solid transparent; transition: 0.3s; }
+                .exam-item:hover { border-color: #bc13fe; background: rgba(188, 19, 254, 0.05); transform: scale(1.02); }
+                .exam-title { font-weight: bold; margin-bottom: 5px; color: #eee; }
+                .exam-meta { display: flex; gap: 10px; font-size: 0.8rem; }
+                .badge { background: #222; padding: 2px 8px; border-radius: 4px; color: #aaa; }
+                .exam-actions { display: flex; gap: 8px; }
+                .exam-actions button { background: #111; border: 1px solid #333; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
+                .exam-actions button:hover { border-color: #fff; }
+                .grade-btn:hover { background: #00f3ff; color: black; border-color: #00f3ff !important; }
+
+                /* Success Banner */
+                .success-banner { background: rgba(0, 255, 136, 0.1); border: 1px solid #00ff88; border-radius: 15px; padding: 25px; margin: 0 auto 40px; max-width: 800px; display: flex; flex-direction: column; gap: 15px; backdrop-filter: blur(10px); }
+                .banner-content { display: flex; align-items: center; gap: 15px; }
+                .banner-content h3 { margin: 0; color: #00ff88; }
+                .banner-content p { margin: 5px 0 0; color: #ccc; }
+                .code-display { background: black; border: 1px solid #333; padding: 10px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+                .code-display span { font-family: monospace; font-size: 1.2rem; color: #00ff88; letter-spacing: 2px; }
+                .code-display button { background: #333; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; display: flex; gap: 5px; }
+                .banner-actions { display: flex; gap: 10px; }
+                .btn-primary-small { background: #00ff88; color: black; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; gap: 8px; }
+                .btn-outline-small { background: transparent; border: 1px solid #00ff88; color: #00ff88; padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; gap: 8px; }
+                .btn-text-small { background: transparent; border: none; color: #aaa; cursor: pointer; text-decoration: underline; margin-left: auto; }
+
+                /* Animations */
+                @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-20px); } 100% { transform: translateY(0px); } }
+                @keyframes wave { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 100% { transform: rotate(0deg); } }
+                .wave { display: inline-block; animation: wave 2s infinite; transform-origin: 70% 70%; }
+                .fade-in { animation: fadeIn 0.8s ease-out; }
+                .slide-down { animation: slideDown 0.3s ease-out; }
+                .slide-up { animation: slideUp 0.5s ease-out forwards; opacity: 0; }
+                .slide-in { animation: slideIn 0.5s ease-out; }
+                .slide-in-right { animation: slideInRight 0.5s ease-out forwards; opacity: 0; transform: translateX(-20px); }
+                
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes slideInRight { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+            `}</style>
         </div>
     );
-};
-
-const styles = {
-    container: { minHeight: '100vh', background: '#0a0a0a', padding: '40px', fontFamily: "'Space Grotesk', sans-serif" },
-    topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' },
-    header: { margin: 0, fontSize: '1.8rem', background: 'linear-gradient(90deg, #00f3ff, #bc13fe)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
-    avatar: { width: 45, height: 45, borderRadius: '50%', background: '#bc13fe', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '1.2rem', border: '2px solid #fff' },
-    logoutButton: { background: '#222', color: '#ff4444', border: '1px solid #333', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center' },
-    
-    // New Style for Edit Profile Button
-    editProfileBtn: { background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#00f3ff', transition: 'background 0.2s' },
-
-    grid: { display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '30px', maxWidth: '1400px', margin: '0 auto' },
-    card: { background: '#141414', padding: '30px', borderRadius: '16px', border: '1px solid #333' },
-    historyCard: { background: '#111', padding: '30px', borderRadius: '16px', border: '1px solid #333', height: 'fit-content', maxHeight: '80vh', display: 'flex', flexDirection: 'column' },
-    label: { color: '#888', fontSize: '0.9rem', marginBottom: '5px', display: 'block' },
-    input: { width: '100%', padding: '12px', marginBottom: '15px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none', boxSizing: 'border-box' },
-    select: { flex: 1, padding: '12px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none' },
-    newSubjectBox: { display: 'flex', gap: '10px', marginBottom: '20px', animation: 'fadeIn 0.3s' },
-    miniInput: { flex: 1, padding: '10px', background: '#000', border: '1px solid #00f3ff', borderRadius: '5px', color: 'white', outline: 'none' },
-    miniBtn: { padding: '0 15px', background: '#00f3ff', color: 'black', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' },
-    filterContainer: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' },
-    filterBtn: { padding: '6px 12px', background: '#222', border: '1px solid #444', color: '#888', borderRadius: '20px', cursor: 'pointer', fontSize: '0.8rem' },
-    filterActive: { padding: '6px 12px', background: '#00f3ff', border: '1px solid #00f3ff', color: 'black', borderRadius: '20px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' },
-    examList: { overflowY: 'auto', paddingRight: '5px' },
-    examItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1a1a', padding: '15px', borderRadius: '10px', marginBottom: '10px', borderLeft: '3px solid #bc13fe' },
-    examTitle: { color: 'white', fontWeight: 'bold', marginBottom: '5px' },
-    examMeta: { display: 'flex', gap: '10px', fontSize: '0.8rem' },
-    subjectTag: { background: '#333', padding: '2px 8px', borderRadius: '4px', color: '#ccc' },
-    buttonGroup: { display: 'flex', gap: '15px', marginTop: '20px' },
-    primaryButton: { flex: 1, padding: '12px', background: '#00f3ff', color: '#000', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', justifyContent: 'center', gap: '8px' },
-    secondaryButton: { flex: 1, padding: '12px', background: 'transparent', color: '#fff', border: '1px solid #444', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' },
-    iconBtn: { padding: '10px', background: '#333', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer' },
-    iconBtnPrimary: { padding: '10px', background: '#00f3ff', border: 'none', borderRadius: '8px', color: 'black', cursor: 'pointer' },
-    successBanner: { maxWidth: '800px', margin: '0 auto 30px', background: 'rgba(0, 255, 136, 0.1)', border: '1px solid #00ff88', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' },
-    codeBox: { background: '#000', padding: '10px 15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' },
-    codeText: { color: '#00ff88', fontFamily: 'monospace', fontSize: '1.2rem' },
-    copyButton: { background: '#333', border: 'none', color: 'white', padding: '8px 12px', borderRadius: '5px', cursor: 'pointer', display: 'flex', gap: '5px' },
-    actionButton: { flex: 1, padding: '10px', background: '#00ff88', color: 'black', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', justifyContent: 'center', gap: '8px' },
-    outlineButton: { flex: 1, padding: '10px', background: 'transparent', border: '1px solid #00ff88', color: '#00ff88', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' },
-    closeButton: { background: 'transparent', border: '1px solid #00ff88', color: '#00ff88', padding: '8px', borderRadius: '5px', cursor: 'pointer', alignSelf: 'center' },
-    questionBox: { background: '#1a1a1a', padding: '20px', borderRadius: '10px', marginBottom: '20px', borderLeft: '4px solid #bc13fe' },
 };
 
 export default TeacherDashboard;

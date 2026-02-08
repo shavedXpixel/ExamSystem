@@ -36,17 +36,17 @@ app.get('/', (req, res) => {
   res.send('Exam System Backend is ONLINE 🚀');
 });
 
-// 2. Create Exam (Teacher) - UPDATED with Subject & Teacher ID
+// 2. Create Exam (Teacher)
 app.post('/api/create-exam', async (req, res) => {
   try {
-    const { title, questions, subject, teacherId } = req.body; // <-- Added subject & teacherId
+    const { title, questions, subject, teacherId } = req.body;
     const totalMarks = questions.reduce((sum, q) => sum + parseInt(q.maxMarks || 0), 0);
     
     const docRef = await db.collection('exams').add({
       title,
       questions,
-      subject: subject || "General", // Default if missing
-      teacherId: teacherId || "Anonymous", // Link to the specific teacher
+      subject: subject || "General",
+      teacherId: teacherId || "Anonymous",
       totalMarks,
       createdAt: admin.firestore.Timestamp.now()
     });
@@ -98,7 +98,7 @@ app.post('/api/submit/:examId', async (req, res) => {
   }
 });
 
-// 5. Check Status (Student entering hall)
+// 5. Check Status (Student entering hall) -- UPDATED FOR REPORT CARD --
 app.post('/api/check/:examId', async (req, res) => {
   try {
     const { regNumber } = req.body;
@@ -112,10 +112,13 @@ app.post('/api/check/:examId', async (req, res) => {
     if (snapshot.empty) return res.json({ found: false });
 
     const data = snapshot.docs[0].data();
+    
     res.json({
       found: true,
       graded: data.isGraded || false,
-      score: data.score || 0
+      score: data.score || 0,
+      marks: data.marks || {},     // <--- Added: Send marks per question
+      answers: data.answers || {}  // <--- Added: Send student's answers
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -157,26 +160,22 @@ app.post('/api/grade/:submissionId', async (req, res) => {
   }
 });
 
-// 8. Get All Exams (Teacher Dashboard History) - NEW!
+// 8. Get All Exams (Teacher Dashboard History)
 app.get('/api/exams', async (req, res) => {
   try {
-    const { teacherId } = req.query; // Get the Teacher ID from the URL
+    const { teacherId } = req.query; 
 
     let query = db.collection('exams');
 
-    // If a teacher ID is provided, filter by it. 
-    // Otherwise, fetch everything (optional security risk, but okay for now)
     if (teacherId) {
        query = query.where('teacherId', '==', teacherId);
     }
     
-    // Order by newest first
     const snapshot = await query.orderBy('createdAt', 'desc').get();
     
     const exams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json(exams);
   } catch (error) {
-    // Note: Use console.log here because Firebase might ask you to create an index
     console.error("Error fetching exams:", error); 
     res.status(500).json({ error: error.message });
   }

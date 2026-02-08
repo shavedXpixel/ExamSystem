@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg-dark: #0a0a0a;
+  --card-dark: rgba(255, 255, 255, 0.05);
+  --neon-blue: #00f3ff;
+  --neon-purple: #bc13fe;
+  --text-main: #ffffff;
+  --text-dim: #a1a1aa;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  /* Premium animated background mesh */
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(188, 19, 254, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(0, 243, 255, 0.15) 0px, transparent 50%);
+  color: var(--text-main);
+  font-family: 'Space Grotesk', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-blue);
+}

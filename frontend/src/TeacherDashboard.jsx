@@ -9,11 +9,6 @@ import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, Log
 // CHANGE THIS TO YOUR RENDER URL
 const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
 
-const DEFAULT_SUBJECTS = [
-    "Mathematics", "Physics", "Chemistry", "Biology", "Computer Science",
-    "English", "History", "Geography", "Hindi", "General Knowledge"
-];
-
 const TeacherDashboard = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
@@ -22,14 +17,9 @@ const TeacherDashboard = () => {
 
     // Data States
     const [allExams, setAllExams] = useState([]);
-    const [dropdownSubjects, setDropdownSubjects] = useState(DEFAULT_SUBJECTS);
     
-    // Selection States
-    const [selectedSubject, setSelectedSubject] = useState(DEFAULT_SUBJECTS[0]);
-    const [isAddingSubject, setIsAddingSubject] = useState(false);
-    const [newSubjectName, setNewSubjectName] = useState("");
-
-    // Exam Creation Form
+    // Exam Creation Form (Simplified Subject)
+    const [subject, setSubject] = useState(''); // <-- Text Input State
     const [title, setTitle] = useState('');
     const [questions, setQuestions] = useState([]);
     const [createdExamId, setCreatedExamId] = useState(null);
@@ -62,8 +52,6 @@ const TeacherDashboard = () => {
         try {
             const res = await axios.get(`${API_URL}/api/exams?teacherId=${userId}`);
             setAllExams(res.data);
-            const usedSubjects = [...new Set(res.data.map(e => e.subject))];
-            setDropdownSubjects(prev => [...new Set([...DEFAULT_SUBJECTS, ...usedSubjects])]);
         } catch (err) { console.error(err); }
     };
 
@@ -73,13 +61,6 @@ const TeacherDashboard = () => {
     };
 
     // --- LOGIC HANDLERS ---
-    const addNewSubject = () => {
-        if (!newSubjectName.trim()) return;
-        setDropdownSubjects(prev => [...prev, newSubjectName]);
-        setSelectedSubject(newSubjectName); // Select immediately
-        setNewSubjectName("");
-        setIsAddingSubject(false);
-    };
 
     const addQuestion = () => setQuestions([...questions, { text: '', type: 'MCQ', options: '', maxMarks: 5 }]);
     
@@ -92,19 +73,21 @@ const TeacherDashboard = () => {
     };
 
     const saveExam = async () => {
-        if (!title) return alert("Please enter an Exam Title!");
+        if (!subject.trim()) return alert("Please enter a Subject Name!");
+        if (!title.trim()) return alert("Please enter an Exam Title!");
         if (questions.length === 0) return alert("Add at least one question!");
 
         setLoading(true);
         try {
             const response = await axios.post(`${API_URL}/api/create-exam`, {
                 title, 
-                subject: selectedSubject, 
+                subject: subject, // <-- Sending the text input value
                 questions, 
                 teacherId: user.uid
             });
             setCreatedExamId(response.data.id);
             setTitle('');
+            setSubject(''); // Reset subject field
             setQuestions([]);
             fetchHistory(user.uid);
         } catch (error) { alert("Failed to save exam."); } 
@@ -116,7 +99,9 @@ const TeacherDashboard = () => {
         alert("Exam ID Copied!");
     };
 
+    // Extract unique subjects from history for the filter
     const uniqueHistorySubjects = ["All", ...new Set(allExams.map(e => e.subject))];
+    
     const filteredExams = historyFilter === "All" ? allExams : allExams.filter(exam => exam.subject === historyFilter);
 
     if (loadingAuth) return <div className="loading-screen">Loading Dashboard...</div>;
@@ -140,8 +125,6 @@ const TeacherDashboard = () => {
                         <div className="profile-meta">
                             <Building size={14} /> 
                             <span>{teacherProfile?.college || user?.email}</span>
-                            
-                            {/* Edit Profile Button */}
                             <button onClick={() => navigate('/profile')} className="icon-btn-small" title="Edit Profile">
                                 <UserPen size={14} />
                             </button>
@@ -160,7 +143,7 @@ const TeacherDashboard = () => {
                         <div className="icon-box"><CheckCircle size={32} color="#00ff88" /></div>
                         <div>
                             <h3>Exam Created Successfully!</h3>
-                            <p>Subject: {selectedSubject}</p>
+                            <p>Subject: {subject}</p>
                         </div>
                     </div>
                     <div className="code-display">
@@ -184,28 +167,20 @@ const TeacherDashboard = () => {
                         <Sparkles size={22} color="#00f3ff"/> Create New Exam
                     </h2>
                     
+                    {/* SIMPLIFIED SUBJECT INPUT */}
                     <div className="form-group">
                         <label>Subject</label>
-                        <div className="subject-row">
-                            <select value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)} className="custom-select">
-                                {dropdownSubjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
-                            </select>
-                            <button onClick={() => setIsAddingSubject(!isAddingSubject)} className="add-subject-btn" title="Add Subject">
-                                <Plus size={20} />
-                            </button>
-                        </div>
-                        
-                        {isAddingSubject && (
-                            <div className="new-subject-popup slide-down">
-                                <input placeholder="New Subject Name..." value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} />
-                                <button onClick={addNewSubject}>Add</button>
-                            </div>
-                        )}
+                        <input 
+                            className="custom-input" 
+                            placeholder="e.g. Mathematics, Physics, Coding..." 
+                            value={subject} 
+                            onChange={e => setSubject(e.target.value)} 
+                        />
                     </div>
 
                     <div className="form-group">
                         <label>Exam Title</label>
-                        <input className="custom-input" placeholder="e.g. Mid-Term Physics Assessment" value={title} onChange={e => setTitle(e.target.value)} />
+                        <input className="custom-input" placeholder="e.g. Mid-Term Assessment" value={title} onChange={e => setTitle(e.target.value)} />
                     </div>
 
                     <div className="questions-container">
@@ -276,13 +251,7 @@ const TeacherDashboard = () => {
                                     </div>
                                     <div className="exam-actions">
                                         <button onClick={() => copyToClipboard(exam.id)} title="Copy ID"><Copy size={16} /></button>
-                                        
-                                        {/* VIEW RESULTS BUTTON */}
-                                        <button 
-                                            className="grade-btn" 
-                                            onClick={() => navigate(`/grade/${exam.id}`)} 
-                                            title="View Results & Students"
-                                        >
+                                        <button className="grade-btn" onClick={() => navigate(`/grade/${exam.id}`)} title="View Results">
                                             <GraduationCap size={16} />
                                             <span>Results</span>
                                         </button>
@@ -336,15 +305,7 @@ const TeacherDashboard = () => {
                 .form-group label { display: block; color: #aaa; margin-bottom: 8px; font-size: 0.9rem; }
                 .custom-input, .custom-select { width: 100%; background: #0a0a0a; border: 1px solid #333; padding: 14px; border-radius: 10px; color: white; outline: none; transition: 0.3s; box-sizing: border-box; }
                 .custom-input:focus, .custom-select:focus { border-color: #00f3ff; box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); }
-                .subject-row { display: flex; gap: 10px; }
-                .add-subject-btn { background: #00f3ff; color: black; border: none; border-radius: 10px; width: 50px; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; }
-                .add-subject-btn:hover { transform: scale(1.05); box-shadow: 0 0 15px #00f3ff; }
                 
-                /* New Subject Popup */
-                .new-subject-popup { margin-top: 10px; display: flex; gap: 10px; background: rgba(0, 243, 255, 0.1); padding: 10px; border-radius: 10px; border: 1px solid #00f3ff; }
-                .new-subject-popup input { flex: 1; background: black; border: none; color: white; padding: 8px; border-radius: 5px; outline: none; }
-                .new-subject-popup button { background: #00f3ff; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-
                 /* Question Box */
                 .questions-container { margin-bottom: 20px; }
                 .question-box { background: rgba(30, 30, 30, 0.5); padding: 20px; border-radius: 12px; margin-bottom: 15px; border-left: 3px solid #bc13fe; transition: 0.3s; }

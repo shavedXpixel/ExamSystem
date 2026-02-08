@@ -35,7 +35,7 @@ STUDENTS
 
 QUICK START
 
-git clone https://github.com/yourusername/exam-system.git  
+clone repository
 cd exam-system  
 
 Backend  

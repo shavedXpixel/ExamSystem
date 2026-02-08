@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { auth, db } from './firebaseConfig';
+import { auth, db } from './firebaseConfig'; 
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen, Building, Filter } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore'; 
+import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen, Building, UserPen } from 'lucide-react'; // <-- Added UserPen
 
 // CHANGE THIS TO YOUR RENDER URL
 const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
@@ -17,13 +17,13 @@ const DEFAULT_SUBJECTS = [
 const TeacherDashboard = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
-    const [teacherProfile, setTeacherProfile] = useState(null);
+    const [teacherProfile, setTeacherProfile] = useState(null); 
     const [loadingAuth, setLoadingAuth] = useState(true);
 
     // Data States
     const [allExams, setAllExams] = useState([]);
     
-    // Dropdown Subjects (Defaults + Custom ones you've used before)
+    // Dropdown Subjects
     const [dropdownSubjects, setDropdownSubjects] = useState(DEFAULT_SUBJECTS);
     
     // Selection States
@@ -45,11 +45,17 @@ const TeacherDashboard = () => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
+                
+                // Fetch Teacher Profile
                 try {
                     const docRef = doc(db, "teachers", currentUser.uid);
                     const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) setTeacherProfile(docSnap.data());
-                } catch (e) { console.error(e); }
+                    if (docSnap.exists()) {
+                        setTeacherProfile(docSnap.data());
+                    }
+                } catch (e) {
+                    console.error("Error fetching profile:", e);
+                }
 
                 fetchHistory(currentUser.uid);
             } else {
@@ -65,10 +71,8 @@ const TeacherDashboard = () => {
             const res = await axios.get(`${API_URL}/api/exams?teacherId=${userId}`);
             setAllExams(res.data);
             
-            // LOGIC: Extract unique subjects from PAST exams to add to the dropdown
+            // Extract unique subjects from PAST exams
             const usedSubjects = [...new Set(res.data.map(e => e.subject))];
-            
-            // Update the Dropdown to include these custom subjects (merging with defaults)
             setDropdownSubjects(prev => [...new Set([...DEFAULT_SUBJECTS, ...usedSubjects])]);
         } catch (err) {
             console.error("Failed to load history", err);
@@ -83,7 +87,6 @@ const TeacherDashboard = () => {
     // --- SUBJECT LOGIC ---
     const addNewSubject = () => {
         if (!newSubjectName.trim()) return;
-        // Add to dropdown immediately
         setDropdownSubjects(prev => [...prev, newSubjectName]);
         setSelectedSubject(newSubjectName);
         setNewSubjectName("");
@@ -115,7 +118,6 @@ const TeacherDashboard = () => {
             setCreatedExamId(response.data.id);
             setTitle('');
             setQuestions([]);
-            // Refresh history immediately (this updates the filter buttons)
             fetchHistory(user.uid); 
         } catch (error) {
             console.error(error);
@@ -130,10 +132,7 @@ const TeacherDashboard = () => {
         alert("Exam ID Copied!");
     };
 
-    // --- DYNAMIC HISTORY FILTERS ---
-    // Only show subjects that actually exist in the history
     const uniqueHistorySubjects = ["All", ...new Set(allExams.map(e => e.subject))];
-
     const filteredExams = historyFilter === "All" 
         ? allExams 
         : allExams.filter(exam => exam.subject === historyFilter);
@@ -152,9 +151,19 @@ const TeacherDashboard = () => {
                         <h1 style={styles.header}>
                             Welcome, {teacherProfile ? `Prof. ${teacherProfile.name.split(' ')[0]}` : "Teacher"} 👨‍🏫
                         </h1>
-                        <p style={{color:'#888', margin:0, fontSize: '0.9rem', display:'flex', alignItems:'center', gap:5}}>
-                            <Building size={14} /> {teacherProfile?.college || user?.email}
-                        </p>
+                        <div style={{display:'flex', alignItems:'center', gap: 10}}>
+                            <p style={{color:'#888', margin:0, fontSize: '0.9rem', display:'flex', alignItems:'center', gap:5}}>
+                                <Building size={14} /> {teacherProfile?.college || user?.email}
+                            </p>
+                            {/* EDIT PROFILE BUTTON */}
+                            <button 
+                                onClick={() => navigate('/profile')} 
+                                style={styles.editProfileBtn} 
+                                title="Edit Profile"
+                            >
+                                <UserPen size={14} />
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <button onClick={handleLogout} style={styles.logoutButton}>
@@ -201,7 +210,6 @@ const TeacherDashboard = () => {
                     
                     <label style={styles.label}>Subject</label>
                     <div style={{display: 'flex', gap: '10px', marginBottom: '15px'}}>
-                        {/* Dropdown shows DEFAULT + CUSTOM subjects */}
                         <select 
                             style={styles.select} 
                             value={selectedSubject}
@@ -256,12 +264,9 @@ const TeacherDashboard = () => {
                         <Folder size={24} /> Exam History
                     </h2>
                     
-                    {/* Only show subjects that HAVE exams */}
                     <div style={styles.filterContainer}>
                         {uniqueHistorySubjects.length === 1 ? (
-                            <p style={{color: '#666', fontSize: '0.9rem', fontStyle: 'italic'}}>
-                                No exams created yet.
-                            </p>
+                            <p style={{color: '#666', fontSize: '0.9rem', fontStyle: 'italic'}}>No exams created yet.</p>
                         ) : (
                             uniqueHistorySubjects.map(sub => (
                                 <button 
@@ -312,42 +317,31 @@ const styles = {
     avatar: { width: 45, height: 45, borderRadius: '50%', background: '#bc13fe', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '1.2rem', border: '2px solid #fff' },
     logoutButton: { background: '#222', color: '#ff4444', border: '1px solid #333', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center' },
     
+    // New Style for Edit Profile Button
+    editProfileBtn: { background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#00f3ff', transition: 'background 0.2s' },
+
     grid: { display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '30px', maxWidth: '1400px', margin: '0 auto' },
-    
-    // Cards
     card: { background: '#141414', padding: '30px', borderRadius: '16px', border: '1px solid #333' },
     historyCard: { background: '#111', padding: '30px', borderRadius: '16px', border: '1px solid #333', height: 'fit-content', maxHeight: '80vh', display: 'flex', flexDirection: 'column' },
-
-    // Inputs
     label: { color: '#888', fontSize: '0.9rem', marginBottom: '5px', display: 'block' },
     input: { width: '100%', padding: '12px', marginBottom: '15px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none', boxSizing: 'border-box' },
     select: { flex: 1, padding: '12px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none' },
-
-    // New Subject Box
     newSubjectBox: { display: 'flex', gap: '10px', marginBottom: '20px', animation: 'fadeIn 0.3s' },
     miniInput: { flex: 1, padding: '10px', background: '#000', border: '1px solid #00f3ff', borderRadius: '5px', color: 'white', outline: 'none' },
     miniBtn: { padding: '0 15px', background: '#00f3ff', color: 'black', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' },
-
-    // History Filters
     filterContainer: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' },
     filterBtn: { padding: '6px 12px', background: '#222', border: '1px solid #444', color: '#888', borderRadius: '20px', cursor: 'pointer', fontSize: '0.8rem' },
     filterActive: { padding: '6px 12px', background: '#00f3ff', border: '1px solid #00f3ff', color: 'black', borderRadius: '20px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' },
-
-    // Exam List
     examList: { overflowY: 'auto', paddingRight: '5px' },
     examItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1a1a', padding: '15px', borderRadius: '10px', marginBottom: '10px', borderLeft: '3px solid #bc13fe' },
     examTitle: { color: 'white', fontWeight: 'bold', marginBottom: '5px' },
     examMeta: { display: 'flex', gap: '10px', fontSize: '0.8rem' },
     subjectTag: { background: '#333', padding: '2px 8px', borderRadius: '4px', color: '#ccc' },
-    
-    // Buttons
     buttonGroup: { display: 'flex', gap: '15px', marginTop: '20px' },
     primaryButton: { flex: 1, padding: '12px', background: '#00f3ff', color: '#000', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', justifyContent: 'center', gap: '8px' },
     secondaryButton: { flex: 1, padding: '12px', background: 'transparent', color: '#fff', border: '1px solid #444', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' },
     iconBtn: { padding: '10px', background: '#333', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer' },
     iconBtnPrimary: { padding: '10px', background: '#00f3ff', border: 'none', borderRadius: '8px', color: 'black', cursor: 'pointer' },
-
-    // Success Banner
     successBanner: { maxWidth: '800px', margin: '0 auto 30px', background: 'rgba(0, 255, 136, 0.1)', border: '1px solid #00ff88', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' },
     codeBox: { background: '#000', padding: '10px 15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' },
     codeText: { color: '#00ff88', fontFamily: 'monospace', fontSize: '1.2rem' },

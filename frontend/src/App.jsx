@@ -5,7 +5,8 @@ import ExamPage from './ExamPage';
 import GradingDashboard from './GradingDashboard';
 import Login from './Login';
 import Signup from './Signup';
-import About from './About'; // <-- New Import
+import About from './About';
+import ProfilePage from './ProfilePage'; // <-- Import the new Profile Page
 
 function App() {
   return (
@@ -14,10 +15,11 @@ function App() {
         {/* --- Authentication Routes --- */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/about" element={<About />} /> {/* <-- The New Premium About Page */}
-
-        {/* --- Protected Route (Teacher Dashboard) --- */}
+        <Route path="/about" element={<About />} />
+        
+        {/* --- Protected Teacher Routes --- */}
         <Route path="/" element={<TeacherDashboard />} />
+        <Route path="/profile" element={<ProfilePage />} /> {/* <-- New Route for Editing Profile */}
 
         {/* --- Student Routes (Public) --- */}
         <Route path="/exam/:examId" element={<ExamPage />} />

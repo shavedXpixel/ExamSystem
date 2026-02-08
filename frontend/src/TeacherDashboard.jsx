@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { auth } from './firebaseConfig';
+import { auth, db } from './firebaseConfig'; // <-- Import db
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen, User } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore'; // <-- Import Firestore functions
+import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen, User, Building } from 'lucide-react';
 
 // CHANGE THIS TO YOUR RENDER URL
 const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
@@ -16,6 +17,7 @@ const DEFAULT_SUBJECTS = [
 const TeacherDashboard = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
+    const [teacherProfile, setTeacherProfile] = useState(null); // <-- Store Name/College
     const [loadingAuth, setLoadingAuth] = useState(true);
 
     // Subject State
@@ -34,11 +36,23 @@ const TeacherDashboard = () => {
     const [allExams, setAllExams] = useState([]);
     const [historyFilter, setHistoryFilter] = useState("All");
 
-    // 1. Check Login & Load History
+    // 1. Check Login & Load Data
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
+                
+                // Fetch Teacher Profile (Name, College)
+                try {
+                    const docRef = doc(db, "teachers", currentUser.uid);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        setTeacherProfile(docSnap.data());
+                    }
+                } catch (e) {
+                    console.error("Error fetching profile:", e);
+                }
+
                 fetchHistory(currentUser.uid);
             } else {
                 navigate('/login');
@@ -53,7 +67,7 @@ const TeacherDashboard = () => {
             const res = await axios.get(`${API_URL}/api/exams?teacherId=${userId}`);
             setAllExams(res.data);
             
-            // Optional: Auto-add subjects from history if they aren't in the list
+            // Auto-add subjects from history
             const usedSubjects = [...new Set(res.data.map(e => e.subject))];
             setSubjects(prev => [...new Set([...prev, ...usedSubjects])]);
         } catch (err) {
@@ -70,7 +84,7 @@ const TeacherDashboard = () => {
     const addNewSubject = () => {
         if (!newSubjectName.trim()) return;
         setSubjects([...subjects, newSubjectName]);
-        setSelectedSubject(newSubjectName); // Auto-select the new one
+        setSelectedSubject(newSubjectName);
         setNewSubjectName("");
         setIsAddingSubject(false);
     };
@@ -132,10 +146,17 @@ const TeacherDashboard = () => {
             {/* HEADER */}
             <div style={styles.topBar}>
                 <div style={{display:'flex', alignItems:'center', gap: 15}}>
-                    <div style={styles.avatar}>{user?.email[0].toUpperCase()}</div>
+                    <div style={styles.avatar}>
+                        {teacherProfile ? teacherProfile.name[0].toUpperCase() : user?.email[0].toUpperCase()}
+                    </div>
                     <div>
-                        <h1 style={styles.header}>Teacher Dashboard</h1>
-                        <p style={{color:'#666', margin:0, fontSize: '0.9rem'}}>{user?.email}</p>
+                        <h1 style={styles.header}>
+                            {/* Personalized Greeting */}
+                            Welcome, {teacherProfile ? `Prof. ${teacherProfile.name.split(' ')[0]}` : "Teacher"} 👨‍🏫
+                        </h1>
+                        <p style={{color:'#888', margin:0, fontSize: '0.9rem', display:'flex', alignItems:'center', gap:5}}>
+                            <Building size={14} /> {teacherProfile?.college || user?.email}
+                        </p>
                     </div>
                 </div>
                 <button onClick={handleLogout} style={styles.logoutButton}>
@@ -336,7 +357,7 @@ const styles = {
     container: { minHeight: '100vh', background: '#0a0a0a', padding: '40px', fontFamily: "'Space Grotesk', sans-serif" },
     topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' },
     header: { margin: 0, fontSize: '1.8rem', background: 'linear-gradient(90deg, #00f3ff, #bc13fe)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
-    avatar: { width: 40, height: 40, borderRadius: '50%', background: '#bc13fe', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '1.2rem' },
+    avatar: { width: 45, height: 45, borderRadius: '50%', background: '#bc13fe', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '1.2rem', border: '2px solid #fff' },
     logoutButton: { background: '#222', color: '#ff4444', border: '1px solid #333', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center' },
     
     grid: { display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '30px', maxWidth: '1400px', margin: '0 auto' },

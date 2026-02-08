@@ -1,9 +1,9 @@
-// frontend/src/firebaseConfig.js
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore"; // <--- NEW IMPORT
 
 const firebaseConfig = {
-  // PASTE YOUR KEYS HERE FROM FIREBASE CONSOLE
+  // PASTE YOUR KEYS HERE (Keep them the same as before)
   apiKey: "AIzaSyC0xSaCcvbqXplwTs6vCFfuGJOBKxTPH_c",
   authDomain: "examsystem-166ac.firebaseapp.com",
   projectId: "examsystem-166ac",
@@ -14,3 +14,4 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const db = getFirestore(app); // <--- Export the Database

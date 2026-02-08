@@ -10,7 +10,7 @@ app.use(express.json());
 // --- FIREBASE SETUP ---
 let serviceAccount;
 try {
-  // Try to load from local file
+  // Try to load from local file (for localhost)
   serviceAccount = require('./serviceAccountKey.json');
 } catch (e) {
   // If file not found (Render), use Environment Variable
@@ -36,15 +36,17 @@ app.get('/', (req, res) => {
   res.send('Exam System Backend is ONLINE 🚀');
 });
 
-// 2. Create Exam (Teacher)
+// 2. Create Exam (Teacher) - UPDATED with Subject & Teacher ID
 app.post('/api/create-exam', async (req, res) => {
   try {
-    const { title, questions } = req.body;
+    const { title, questions, subject, teacherId } = req.body; // <-- Added subject & teacherId
     const totalMarks = questions.reduce((sum, q) => sum + parseInt(q.maxMarks || 0), 0);
     
     const docRef = await db.collection('exams').add({
       title,
       questions,
+      subject: subject || "General", // Default if missing
+      teacherId: teacherId || "Anonymous", // Link to the specific teacher
       totalMarks,
       createdAt: admin.firestore.Timestamp.now()
     });
@@ -86,7 +88,7 @@ app.post('/api/submit/:examId', async (req, res) => {
       regNumber,
       answers,
       score: 0,
-      isGraded: false, // Default is false
+      isGraded: false,
       submittedAt: admin.firestore.Timestamp.now()
     });
 
@@ -112,7 +114,7 @@ app.post('/api/check/:examId', async (req, res) => {
     const data = snapshot.docs[0].data();
     res.json({
       found: true,
-      graded: data.isGraded || false, // Crucial check
+      graded: data.isGraded || false,
       score: data.score || 0
     });
   } catch (error) {
@@ -120,7 +122,7 @@ app.post('/api/check/:examId', async (req, res) => {
   }
 });
 
-// 6. Get Submissions (Teacher Dashboard)
+// 6. Get Submissions (Teacher Dashboard - Grading View)
 app.get('/api/submissions/:examId', async (req, res) => {
   try {
     const snapshot = await db.collection('submissions')
@@ -134,7 +136,7 @@ app.get('/api/submissions/:examId', async (req, res) => {
   }
 });
 
-// 7. Save Grade (Teacher Grading) <-- THIS WAS LIKELY MISSING
+// 7. Save Grade (Teacher Grading)
 app.post('/api/grade/:submissionId', async (req, res) => {
   try {
     const { submissionId } = req.params;
@@ -145,12 +147,37 @@ app.post('/api/grade/:submissionId', async (req, res) => {
     await db.collection('submissions').doc(submissionId).update({
       marks: marks,
       score: totalScore,
-      isGraded: true // This flips the switch for the student
+      isGraded: true
     });
 
     res.json({ message: 'Graded successfully' });
   } catch (error) {
     console.error("Grading Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 8. Get All Exams (Teacher Dashboard History) - NEW!
+app.get('/api/exams', async (req, res) => {
+  try {
+    const { teacherId } = req.query; // Get the Teacher ID from the URL
+
+    let query = db.collection('exams');
+
+    // If a teacher ID is provided, filter by it. 
+    // Otherwise, fetch everything (optional security risk, but okay for now)
+    if (teacherId) {
+       query = query.where('teacherId', '==', teacherId);
+    }
+    
+    // Order by newest first
+    const snapshot = await query.orderBy('createdAt', 'desc').get();
+    
+    const exams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json(exams);
+  } catch (error) {
+    // Note: Use console.log here because Firebase might ask you to create an index
+    console.error("Error fetching exams:", error); 
     res.status(500).json({ error: error.message });
   }
 });

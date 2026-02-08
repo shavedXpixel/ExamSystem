@@ -1,32 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom'; // <-- Import for navigation
-import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { auth } from './firebaseConfig'; // Make sure this path is correct
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen } from 'lucide-react';
 
+// CHANGE THIS TO YOUR RENDER URL
 const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
-// (Make sure there is NO slash at the end!)
+
+const SUBJECTS = [
+    "Mathematics", "Physics", "Chemistry", "Biology", "Computer Science",
+    "English", "History", "Geography", "Hindi", "General Knowledge"
+];
 
 const TeacherDashboard = () => {
-    const navigate = useNavigate(); // <-- Hook to change pages
+    const navigate = useNavigate();
+    const [user, setUser] = useState(null);
+    const [loadingAuth, setLoadingAuth] = useState(true);
+
+    // Exam Creation States
     const [title, setTitle] = useState('');
+    const [selectedSubject, setSelectedSubject] = useState(SUBJECTS[0]);
     const [questions, setQuestions] = useState([]);
     const [createdExamId, setCreatedExamId] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [existingId, setExistingId] = useState(''); // For the "Grade Existing" box
 
-    // Default new question is MCQ
+    // History States
+    const [allExams, setAllExams] = useState([]);
+    const [historyFilter, setHistoryFilter] = useState("All");
+
+    // 1. Check Login & Load History
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            if (currentUser) {
+                setUser(currentUser);
+                fetchHistory(currentUser.uid); // Load ONLY this teacher's exams
+            } else {
+                navigate('/login'); // Kick out if not logged in
+            }
+            setLoadingAuth(false);
+        });
+        return () => unsubscribe();
+    }, [navigate]);
+
+    const fetchHistory = async (userId) => {
+        try {
+            const res = await axios.get(`${API_URL}/api/exams?teacherId=${userId}`);
+            setAllExams(res.data);
+        } catch (err) {
+            console.error("Failed to load history", err);
+        }
+    };
+
+    const handleLogout = async () => {
+        await signOut(auth);
+        navigate('/login');
+    };
+
+    // --- EXAM LOGIC ---
     const addQuestion = () => {
-        setQuestions([...questions, { 
-            text: '', 
-            type: 'MCQ', 
-            options: '', 
-            maxMarks: 5 
-        }]);
+        setQuestions([...questions, { text: '', type: 'MCQ', options: '', maxMarks: 5 }]);
     };
 
     const removeQuestion = (index) => {
-        const newQuestions = questions.filter((_, i) => i !== index);
-        setQuestions(newQuestions);
+        setQuestions(questions.filter((_, i) => i !== index));
     };
 
     const handleQuestionChange = (index, field, value) => {
@@ -43,11 +80,15 @@ const TeacherDashboard = () => {
         try {
             const response = await axios.post(`${API_URL}/api/create-exam`, {
                 title,
-                questions
+                subject: selectedSubject,
+                questions,
+                teacherId: user.uid // <-- Attach Teacher ID so we know who owns it
             });
+            
             setCreatedExamId(response.data.id);
             setTitle('');
             setQuestions([]);
+            fetchHistory(user.uid); // Refresh history list immediately
         } catch (error) {
             console.error(error);
             alert("Failed to save exam.");
@@ -56,129 +97,191 @@ const TeacherDashboard = () => {
         }
     };
 
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(createdExamId);
-        alert("ID Copied!");
+    const copyToClipboard = (id) => {
+        navigator.clipboard.writeText(id);
+        alert("Exam ID Copied!");
     };
+
+    // Filter Logic
+    const filteredExams = historyFilter === "All" 
+        ? allExams 
+        : allExams.filter(exam => exam.subject === historyFilter);
+
+    if (loadingAuth) return <div style={{color:'white', textAlign:'center', marginTop: 50}}>Loading...</div>;
 
     return (
         <div style={styles.container}>
-            <h1 style={styles.header}>Teacher Dashboard 👨‍🏫</h1>
+            {/* HEADER */}
+            <div style={styles.topBar}>
+                <div>
+                    <h1 style={styles.header}>Teacher Dashboard 👨‍🏫</h1>
+                    <p style={{color:'#666', margin:0}}>Welcome, {user?.email}</p>
+                </div>
+                <button onClick={handleLogout} style={styles.logoutButton}>
+                    <LogOut size={18} /> Logout
+                </button>
+            </div>
             
-            {/* --- SUCCESS BANNER WITH BUTTONS --- */}
+            {/* SUCCESS BANNER */}
             {createdExamId && (
                 <div style={styles.successBanner}>
                     <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                         <CheckCircle size={32} color="#00ff88" />
                         <div>
-                            <h3 style={{margin: 0, color: '#00ff88'}}>Exam Created!</h3>
-                            <p style={{margin: '5px 0 0', color: '#ccc'}}>Share this ID with students:</p>
+                            <h3 style={{margin: 0, color: '#00ff88'}}>Exam Created Successfully!</h3>
+                            <p style={{margin: '5px 0 0', color: '#ccc'}}>Subject: {selectedSubject}</p>
                         </div>
                     </div>
                     
                     <div style={styles.codeBox}>
                         <span style={styles.codeText}>{createdExamId}</span>
-                        <button onClick={copyToClipboard} style={styles.copyButton}><Copy size={18} /> Copy</button>
+                        <button onClick={() => copyToClipboard(createdExamId)} style={styles.copyButton}><Copy size={18} /> Copy</button>
                     </div>
 
-                    {/* NEW BUTTONS TO CONNECT */}
                     <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
-                        <button 
-                            onClick={() => navigate(`/grade/${createdExamId}`)} 
-                            style={styles.actionButton}
-                        >
-                            <GraduationCap size={18} /> Open Grading Panel
+                        <button onClick={() => navigate(`/grade/${createdExamId}`)} style={styles.actionButton}>
+                            <GraduationCap size={18} /> Open Grading
                         </button>
-                        <button 
-                            onClick={() => window.open(`/exam/${createdExamId}`, '_blank')} 
-                            style={styles.outlineButton}
-                        >
-                            <ExternalLink size={18} /> Test as Student
+                        <button onClick={() => window.open(`/exam/${createdExamId}`, '_blank')} style={styles.outlineButton}>
+                            <ExternalLink size={18} /> Test Link
                         </button>
                     </div>
-
                     <button onClick={() => setCreatedExamId(null)} style={styles.closeButton}>Create Another</button>
                 </div>
             )}
 
-            {/* --- CREATE EXAM CARD --- */}
-            <div style={styles.card}>
-                <h2 style={{marginTop: 0, color: '#fff'}}>Create New Exam</h2>
-                <input 
-                    style={styles.input}
-                    placeholder="Exam Title (e.g., Final Physics Exam)" 
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
-                />
+            {/* MAIN GRID LAYOUT */}
+            <div style={styles.grid}>
+                
+                {/* LEFT: CREATE EXAM FORM */}
+                <div style={styles.card}>
+                    <h2 style={{marginTop: 0, color: '#fff', display:'flex', alignItems:'center', gap:10}}>
+                        <Plus size={24} color="#00f3ff"/> Create New Exam
+                    </h2>
+                    
+                    <label style={styles.label}>Subject</label>
+                    <select 
+                        style={styles.select} 
+                        value={selectedSubject}
+                        onChange={e => setSelectedSubject(e.target.value)}
+                    >
+                        {SUBJECTS.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                    </select>
 
-                {questions.map((q, index) => (
-                    <div key={index} style={styles.questionBox}>
-                        <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                            <h4 style={{margin: '0 0 10px 0', color: '#aaa'}}>Question {index + 1}</h4>
-                            <Trash2 size={18} color="#ff4444" style={{cursor:'pointer'}} onClick={() => removeQuestion(index)} />
-                        </div>
+                    <label style={styles.label}>Exam Title</label>
+                    <input 
+                        style={styles.input}
+                        placeholder="e.g., Mid-Term Physics Assessment" 
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                    />
 
-                        <input 
-                            style={styles.input}
-                            placeholder="Type Question Here..."
-                            value={q.text}
-                            onChange={e => handleQuestionChange(index, 'text', e.target.value)}
-                        />
+                    {questions.map((q, index) => (
+                        <div key={index} style={styles.questionBox}>
+                            <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                                <h4 style={{margin: '0 0 10px 0', color: '#aaa'}}>Question {index + 1}</h4>
+                                <Trash2 size={18} color="#ff4444" style={{cursor:'pointer'}} onClick={() => removeQuestion(index)} />
+                            </div>
 
-                        <div style={{display: 'flex', gap: '10px', marginBottom: '10px'}}>
-                            <select 
-                                style={styles.select}
-                                value={q.type}
-                                onChange={e => handleQuestionChange(index, 'type', e.target.value)}
-                            >
-                                <option value="MCQ">Multiple Choice</option>
-                                <option value="Text">Written Answer</option>
-                            </select>
-
-                            <input 
-                                type="number"
-                                placeholder="Marks"
-                                style={{...styles.input, width: '80px', marginBottom: 0}}
-                                value={q.maxMarks}
-                                onChange={e => handleQuestionChange(index, 'maxMarks', e.target.value)}
-                            />
-                        </div>
-
-                        {q.type === 'MCQ' && (
                             <input 
                                 style={styles.input}
-                                placeholder="Options (Comma separated: A,B,C,D)"
-                                value={q.options}
-                                onChange={e => handleQuestionChange(index, 'options', e.target.value)}
+                                placeholder="Type Question Here..."
+                                value={q.text}
+                                onChange={e => handleQuestionChange(index, 'text', e.target.value)}
                             />
+
+                            <div style={{display: 'flex', gap: '10px', marginBottom: '10px'}}>
+                                <select 
+                                    style={styles.select}
+                                    value={q.type}
+                                    onChange={e => handleQuestionChange(index, 'type', e.target.value)}
+                                >
+                                    <option value="MCQ">Multiple Choice</option>
+                                    <option value="Text">Written Answer</option>
+                                </select>
+
+                                <input 
+                                    type="number"
+                                    placeholder="Marks"
+                                    style={{...styles.input, width: '80px', marginBottom: 0}}
+                                    value={q.maxMarks}
+                                    onChange={e => handleQuestionChange(index, 'maxMarks', e.target.value)}
+                                />
+                            </div>
+
+                            {q.type === 'MCQ' && (
+                                <input 
+                                    style={styles.input}
+                                    placeholder="Options (A,B,C,D)"
+                                    value={q.options}
+                                    onChange={e => handleQuestionChange(index, 'options', e.target.value)}
+                                />
+                            )}
+                        </div>
+                    ))}
+
+                    <div style={styles.buttonGroup}>
+                        <button onClick={addQuestion} style={styles.secondaryButton}><Plus size={18} /> Add Question</button>
+                        <button onClick={saveExam} style={styles.primaryButton} disabled={loading}>
+                            {loading ? 'Saving...' : <><Save size={18} /> Save Exam</>}
+                        </button>
+                    </div>
+                </div>
+
+                {/* RIGHT: HISTORY & ARCHIVES */}
+                <div style={styles.historyCard}>
+                    <h2 style={{marginTop: 0, color: '#00f3ff', display:'flex', alignItems:'center', gap:10}}>
+                        <Folder size={24} /> Exam History
+                    </h2>
+                    
+                    {/* Filter Tabs */}
+                    <div style={styles.filterContainer}>
+                        <button 
+                            style={historyFilter === "All" ? styles.filterActive : styles.filterBtn}
+                            onClick={() => setHistoryFilter("All")}
+                        >
+                            All
+                        </button>
+                        {SUBJECTS.map(sub => (
+                            <button 
+                                key={sub}
+                                style={historyFilter === sub ? styles.filterActive : styles.filterBtn}
+                                onClick={() => setHistoryFilter(sub)}
+                            >
+                                {sub}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Exam List */}
+                    <div style={styles.examList}>
+                        {filteredExams.length === 0 ? (
+                            <div style={{textAlign:'center', padding: 20, color:'#555'}}>
+                                <BookOpen size={40} style={{marginBottom:10, opacity:0.5}} />
+                                <p>No exams found for {historyFilter}</p>
+                            </div>
+                        ) : (
+                            filteredExams.map(exam => (
+                                <div key={exam.id} style={styles.examItem}>
+                                    <div>
+                                        <div style={styles.examTitle}>{exam.title}</div>
+                                        <div style={styles.examMeta}>
+                                            <span style={styles.subjectTag}>{exam.subject || "General"}</span>
+                                            <span style={{color:'#666'}}>{exam.totalMarks} Marks</span>
+                                        </div>
+                                    </div>
+                                    <div style={{display:'flex', gap: '8px'}}>
+                                        <button onClick={() => copyToClipboard(exam.id)} style={styles.iconBtn} title="Copy ID">
+                                            <Copy size={16} />
+                                        </button>
+                                        <button onClick={() => navigate(`/grade/${exam.id}`)} style={styles.iconBtnPrimary} title="Grade">
+                                            <GraduationCap size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
                         )}
                     </div>
-                ))}
-
-                <div style={styles.buttonGroup}>
-                    <button onClick={addQuestion} style={styles.secondaryButton}><Plus size={18} /> Add Question</button>
-                    <button onClick={saveExam} style={styles.primaryButton} disabled={loading}>
-                        {loading ? 'Saving...' : <><Save size={18} /> Save Exam</>}
-                    </button>
-                </div>
-            </div>
-
-            {/* --- NEW SECTION: GRADE EXISTING EXAM --- */}
-            <div style={{...styles.card, marginTop: '30px', textAlign: 'center'}}>
-                <h3 style={{color: '#888'}}>Or Grade an Existing Exam</h3>
-                <div style={{display: 'flex', gap: '10px', justifyContent: 'center'}}>
-                    <input 
-                        style={{...styles.input, marginBottom: 0, width: '200px'}} 
-                        placeholder="Paste Exam ID"
-                        value={existingId}
-                        onChange={e => setExistingId(e.target.value)}
-                    />
-                    <button 
-                        onClick={() => navigate(`/grade/${existingId}`)}
-                        style={styles.primaryButton}
-                    >
-                        Go
-                    </button>
                 </div>
             </div>
         </div>
@@ -187,27 +290,49 @@ const TeacherDashboard = () => {
 
 const styles = {
     container: { minHeight: '100vh', background: '#0a0a0a', padding: '40px', fontFamily: "'Space Grotesk', sans-serif" },
-    header: { textAlign: 'center', background: 'linear-gradient(90deg, #00f3ff, #bc13fe)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '40px' },
+    topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' },
+    header: { margin: 0, background: 'linear-gradient(90deg, #00f3ff, #bc13fe)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+    logoutButton: { background: '#333', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center' },
     
-    // Banner Styles
-    successBanner: { maxWidth: '600px', margin: '0 auto 30px', background: 'rgba(0, 255, 136, 0.1)', border: '1px solid #00ff88', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' },
+    grid: { display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '30px', maxWidth: '1400px', margin: '0 auto' },
+    
+    // Cards
+    card: { background: '#141414', padding: '30px', borderRadius: '16px', border: '1px solid #333' },
+    historyCard: { background: '#111', padding: '30px', borderRadius: '16px', border: '1px solid #333', height: 'fit-content', maxHeight: '80vh', display: 'flex', flexDirection: 'column' },
+
+    // Inputs
+    label: { color: '#888', fontSize: '0.9rem', marginBottom: '5px', display: 'block' },
+    input: { width: '100%', padding: '12px', marginBottom: '15px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none', boxSizing: 'border-box' },
+    select: { width: '100%', padding: '12px', marginBottom: '15px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none' },
+
+    // History Filters
+    filterContainer: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' },
+    filterBtn: { padding: '6px 12px', background: '#222', border: '1px solid #444', color: '#888', borderRadius: '20px', cursor: 'pointer', fontSize: '0.8rem' },
+    filterActive: { padding: '6px 12px', background: '#00f3ff', border: '1px solid #00f3ff', color: 'black', borderRadius: '20px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' },
+
+    // Exam List
+    examList: { overflowY: 'auto', paddingRight: '5px' },
+    examItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1a1a', padding: '15px', borderRadius: '10px', marginBottom: '10px', borderLeft: '3px solid #bc13fe' },
+    examTitle: { color: 'white', fontWeight: 'bold', marginBottom: '5px' },
+    examMeta: { display: 'flex', gap: '10px', fontSize: '0.8rem' },
+    subjectTag: { background: '#333', padding: '2px 8px', borderRadius: '4px', color: '#ccc' },
+    
+    // Buttons
+    buttonGroup: { display: 'flex', gap: '15px', marginTop: '20px' },
+    primaryButton: { flex: 1, padding: '12px', background: '#00f3ff', color: '#000', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', justifyContent: 'center', gap: '8px' },
+    secondaryButton: { flex: 1, padding: '12px', background: 'transparent', color: '#fff', border: '1px solid #444', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' },
+    iconBtn: { padding: '8px', background: '#333', border: 'none', borderRadius: '5px', color: 'white', cursor: 'pointer' },
+    iconBtnPrimary: { padding: '8px', background: '#00f3ff', border: 'none', borderRadius: '5px', color: 'black', cursor: 'pointer' },
+
+    // Success Banner
+    successBanner: { maxWidth: '800px', margin: '0 auto 30px', background: 'rgba(0, 255, 136, 0.1)', border: '1px solid #00ff88', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' },
     codeBox: { background: '#000', padding: '10px 15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' },
     codeText: { color: '#00ff88', fontFamily: 'monospace', fontSize: '1.2rem' },
     copyButton: { background: '#333', border: 'none', color: 'white', padding: '8px 12px', borderRadius: '5px', cursor: 'pointer', display: 'flex', gap: '5px' },
-    closeButton: { background: 'transparent', border: '1px solid #00ff88', color: '#00ff88', padding: '8px', borderRadius: '5px', cursor: 'pointer', alignSelf: 'center', marginTop: '10px' },
-    
-    // New Action Buttons
     actionButton: { flex: 1, padding: '10px', background: '#00ff88', color: 'black', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', justifyContent: 'center', gap: '8px' },
     outlineButton: { flex: 1, padding: '10px', background: 'transparent', border: '1px solid #00ff88', color: '#00ff88', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' },
-
-    // Card Styles
-    card: { maxWidth: '600px', margin: '0 auto', background: '#141414', padding: '30px', borderRadius: '16px', border: '1px solid #333', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' },
-    input: { width: '100%', padding: '12px', marginBottom: '15px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none', boxSizing: 'border-box' },
-    select: { flex: 1, padding: '12px', background: '#222', border: '1px solid #444', borderRadius: '8px', color: 'white', fontSize: '1rem', outline: 'none' },
+    closeButton: { background: 'transparent', border: '1px solid #00ff88', color: '#00ff88', padding: '8px', borderRadius: '5px', cursor: 'pointer', alignSelf: 'center' },
     questionBox: { background: '#1a1a1a', padding: '20px', borderRadius: '10px', marginBottom: '20px', borderLeft: '4px solid #bc13fe' },
-    buttonGroup: { display: 'flex', gap: '15px', marginTop: '20px' },
-    primaryButton: { flex: 1, padding: '12px', background: '#00f3ff', color: '#000', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', justifyContent: 'center', gap: '8px' },
-    secondaryButton: { flex: 1, padding: '12px', background: 'transparent', color: '#fff', border: '1px solid #444', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px' }
 };
 
 export default TeacherDashboard;

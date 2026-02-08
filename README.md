@@ -1,107 +1,58 @@
-# 🎓 Premium Exam System
+![Cyberpunk Header](https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif)
 
-A modern Online Examination Platform built with React, Node.js, and Firebase.
-Designed with a premium glassmorphism UI, smooth animations, and secure exam workflows.
+# ⚡ PREMIUM EXAM SYSTEM ⚡
 
-License: MIT
-Frontend: React + Vite
-Backend: Node + Express
-Database: Firebase Firestore
+A cyberpunk-inspired **online examination platform** built with **React, Node.js, and Firebase**.
+Focused on secure exams, smooth animations, and a premium futuristic UI.
 
---------------------------------------------------
-
-FEATURES
-
-Teachers:
-- Secure login with Firebase Authentication
-- Create exams (MCQ + text questions)
-- Add custom subjects and marks
-- Grade student submissions
-- Manage profile details
-
-Students:
-- No login required (Exam ID access)
-- Real-time submission status
-- Animated exam interface
-- Detailed scorecard with breakdown
-
-System:
-- Responsive UI (desktop + mobile)
-- Glassmorphism design with animations
-- Keep-alive backend for free hosting
-
---------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 TECH STACK
 
-Frontend: React, Vite, React Router, Axios, Lucide Icons
-Backend: Node.js, Express.js
-Database/Auth: Firebase Firestore & Firebase Auth
-Hosting: Render, Netlify, Vercel
+• Frontend   → React, Vite  
+• Backend    → Node.js, Express  
+• Database   → Firebase Firestore  
+• Auth       → Firebase Authentication  
+• Deployment → Render, Netlify, Vercel  
 
---------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-INSTALLATION
+CORE FEATURES
 
-1) Clone Repository
+TEACHERS
+• Secure authentication & dashboard  
+• Create exams (MCQ + text questions)  
+• Assign marks & manage subjects  
+• Grade submissions and publish results  
 
-git clone https://github.com/yourusername/exam-system.git
-cd exam-system
+STUDENTS
+• Exam ID based access (no login required)  
+• Animated exam interface  
+• Real-time submission validation  
+• Detailed score report  
 
-2) Backend Setup
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-cd backend
-npm install
-node server.js
+QUICK START
 
-Server runs on port 8000 by default.
+git clone https://github.com/yourusername/exam-system.git  
+cd exam-system  
 
-3) Frontend Setup
+Backend  
+cd backend  
+npm install  
+node server.js  
 
-cd frontend
-npm install
-npm run dev
+Frontend  
+cd frontend  
+npm install  
+npm run dev  
 
---------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-FIREBASE CONFIG
+LICENSE  
+MIT License  
 
-Create file: frontend/src/firebaseConfig.js
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-
---------------------------------------------------
-
-PROJECT STRUCTURE
-
-exam-system/
-  backend/
-    server.js
-  frontend/
-    src/
-      App.jsx
-      ExamPage.jsx
-      TeacherDashboard.jsx
-      GradingDashboard.jsx
-
---------------------------------------------------
-
-LICENSE
-
-MIT License
-
---------------------------------------------------
-
-Made with ❤️ by Priyansu Dash
+Built with ❤️ by Priyansu Dash

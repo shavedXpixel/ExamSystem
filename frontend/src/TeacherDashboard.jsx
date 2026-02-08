@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { auth, db } from './firebaseConfig'; // <-- Import db
+import { auth, db } from './firebaseConfig';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore'; // <-- Import Firestore functions
-import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen, User, Building } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { Copy, CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Folder, BookOpen, Building, Filter } from 'lucide-react';
 
 // CHANGE THIS TO YOUR RENDER URL
 const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
@@ -17,23 +17,27 @@ const DEFAULT_SUBJECTS = [
 const TeacherDashboard = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
-    const [teacherProfile, setTeacherProfile] = useState(null); // <-- Store Name/College
+    const [teacherProfile, setTeacherProfile] = useState(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
 
-    // Subject State
-    const [subjects, setSubjects] = useState(DEFAULT_SUBJECTS);
+    // Data States
+    const [allExams, setAllExams] = useState([]);
+    
+    // Dropdown Subjects (Defaults + Custom ones you've used before)
+    const [dropdownSubjects, setDropdownSubjects] = useState(DEFAULT_SUBJECTS);
+    
+    // Selection States
     const [selectedSubject, setSelectedSubject] = useState(DEFAULT_SUBJECTS[0]);
     const [isAddingSubject, setIsAddingSubject] = useState(false);
     const [newSubjectName, setNewSubjectName] = useState("");
 
-    // Exam Creation States
+    // Exam Creation Form
     const [title, setTitle] = useState('');
     const [questions, setQuestions] = useState([]);
     const [createdExamId, setCreatedExamId] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    // History States
-    const [allExams, setAllExams] = useState([]);
+    // History Filter State
     const [historyFilter, setHistoryFilter] = useState("All");
 
     // 1. Check Login & Load Data
@@ -41,17 +45,11 @@ const TeacherDashboard = () => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
-                
-                // Fetch Teacher Profile (Name, College)
                 try {
                     const docRef = doc(db, "teachers", currentUser.uid);
                     const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) {
-                        setTeacherProfile(docSnap.data());
-                    }
-                } catch (e) {
-                    console.error("Error fetching profile:", e);
-                }
+                    if (docSnap.exists()) setTeacherProfile(docSnap.data());
+                } catch (e) { console.error(e); }
 
                 fetchHistory(currentUser.uid);
             } else {
@@ -67,9 +65,11 @@ const TeacherDashboard = () => {
             const res = await axios.get(`${API_URL}/api/exams?teacherId=${userId}`);
             setAllExams(res.data);
             
-            // Auto-add subjects from history
+            // LOGIC: Extract unique subjects from PAST exams to add to the dropdown
             const usedSubjects = [...new Set(res.data.map(e => e.subject))];
-            setSubjects(prev => [...new Set([...prev, ...usedSubjects])]);
+            
+            // Update the Dropdown to include these custom subjects (merging with defaults)
+            setDropdownSubjects(prev => [...new Set([...DEFAULT_SUBJECTS, ...usedSubjects])]);
         } catch (err) {
             console.error("Failed to load history", err);
         }
@@ -83,21 +83,16 @@ const TeacherDashboard = () => {
     // --- SUBJECT LOGIC ---
     const addNewSubject = () => {
         if (!newSubjectName.trim()) return;
-        setSubjects([...subjects, newSubjectName]);
+        // Add to dropdown immediately
+        setDropdownSubjects(prev => [...prev, newSubjectName]);
         setSelectedSubject(newSubjectName);
         setNewSubjectName("");
         setIsAddingSubject(false);
     };
 
     // --- EXAM LOGIC ---
-    const addQuestion = () => {
-        setQuestions([...questions, { text: '', type: 'MCQ', options: '', maxMarks: 5 }]);
-    };
-
-    const removeQuestion = (index) => {
-        setQuestions(questions.filter((_, i) => i !== index));
-    };
-
+    const addQuestion = () => setQuestions([...questions, { text: '', type: 'MCQ', options: '', maxMarks: 5 }]);
+    const removeQuestion = (index) => setQuestions(questions.filter((_, i) => i !== index));
     const handleQuestionChange = (index, field, value) => {
         const newQuestions = [...questions];
         newQuestions[index][field] = value;
@@ -120,7 +115,8 @@ const TeacherDashboard = () => {
             setCreatedExamId(response.data.id);
             setTitle('');
             setQuestions([]);
-            fetchHistory(user.uid);
+            // Refresh history immediately (this updates the filter buttons)
+            fetchHistory(user.uid); 
         } catch (error) {
             console.error(error);
             alert("Failed to save exam.");
@@ -134,7 +130,10 @@ const TeacherDashboard = () => {
         alert("Exam ID Copied!");
     };
 
-    // Filter Logic
+    // --- DYNAMIC HISTORY FILTERS ---
+    // Only show subjects that actually exist in the history
+    const uniqueHistorySubjects = ["All", ...new Set(allExams.map(e => e.subject))];
+
     const filteredExams = historyFilter === "All" 
         ? allExams 
         : allExams.filter(exam => exam.subject === historyFilter);
@@ -151,7 +150,6 @@ const TeacherDashboard = () => {
                     </div>
                     <div>
                         <h1 style={styles.header}>
-                            {/* Personalized Greeting */}
                             Welcome, {teacherProfile ? `Prof. ${teacherProfile.name.split(' ')[0]}` : "Teacher"} 👨‍🏫
                         </h1>
                         <p style={{color:'#888', margin:0, fontSize: '0.9rem', display:'flex', alignItems:'center', gap:5}}>
@@ -192,54 +190,37 @@ const TeacherDashboard = () => {
                 </div>
             )}
 
-            {/* MAIN GRID LAYOUT */}
+            {/* MAIN GRID */}
             <div style={styles.grid}>
                 
-                {/* LEFT: CREATE EXAM FORM */}
+                {/* --- LEFT: CREATE EXAM --- */}
                 <div style={styles.card}>
                     <h2 style={{marginTop: 0, color: '#fff', display:'flex', alignItems:'center', gap:10}}>
                         <Plus size={24} color="#00f3ff"/> Create New Exam
                     </h2>
                     
-                    {/* DYNAMIC SUBJECT SELECTOR */}
                     <label style={styles.label}>Subject</label>
                     <div style={{display: 'flex', gap: '10px', marginBottom: '15px'}}>
+                        {/* Dropdown shows DEFAULT + CUSTOM subjects */}
                         <select 
                             style={styles.select} 
                             value={selectedSubject}
                             onChange={e => setSelectedSubject(e.target.value)}
                         >
-                            {subjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                            {dropdownSubjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
                         </select>
-                        <button 
-                            onClick={() => setIsAddingSubject(!isAddingSubject)} 
-                            style={styles.iconBtnPrimary}
-                            title="Add New Subject"
-                        >
-                            <Plus size={20} />
-                        </button>
+                        <button onClick={() => setIsAddingSubject(!isAddingSubject)} style={styles.iconBtnPrimary} title="Add New Subject"><Plus size={20} /></button>
                     </div>
 
-                    {/* Add New Subject Popup Input */}
                     {isAddingSubject && (
                         <div style={styles.newSubjectBox}>
-                            <input 
-                                style={styles.miniInput} 
-                                placeholder="Enter Subject Name..."
-                                value={newSubjectName}
-                                onChange={e => setNewSubjectName(e.target.value)}
-                            />
+                            <input style={styles.miniInput} placeholder="Enter Subject Name..." value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} />
                             <button onClick={addNewSubject} style={styles.miniBtn}>Add</button>
                         </div>
                     )}
 
                     <label style={styles.label}>Exam Title</label>
-                    <input 
-                        style={styles.input}
-                        placeholder="e.g., Mid-Term Physics Assessment" 
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                    />
+                    <input style={styles.input} placeholder="e.g., Mid-Term Physics Assessment" value={title} onChange={e => setTitle(e.target.value)} />
 
                     {questions.map((q, index) => (
                         <div key={index} style={styles.questionBox}>
@@ -247,40 +228,16 @@ const TeacherDashboard = () => {
                                 <h4 style={{margin: '0 0 10px 0', color: '#aaa'}}>Question {index + 1}</h4>
                                 <Trash2 size={18} color="#ff4444" style={{cursor:'pointer'}} onClick={() => removeQuestion(index)} />
                             </div>
-
-                            <input 
-                                style={styles.input}
-                                placeholder="Type Question Here..."
-                                value={q.text}
-                                onChange={e => handleQuestionChange(index, 'text', e.target.value)}
-                            />
-
+                            <input style={styles.input} placeholder="Type Question Here..." value={q.text} onChange={e => handleQuestionChange(index, 'text', e.target.value)} />
                             <div style={{display: 'flex', gap: '10px', marginBottom: '10px'}}>
-                                <select 
-                                    style={styles.select}
-                                    value={q.type}
-                                    onChange={e => handleQuestionChange(index, 'type', e.target.value)}
-                                >
+                                <select style={styles.select} value={q.type} onChange={e => handleQuestionChange(index, 'type', e.target.value)}>
                                     <option value="MCQ">Multiple Choice</option>
                                     <option value="Text">Written Answer</option>
                                 </select>
-
-                                <input 
-                                    type="number"
-                                    placeholder="Marks"
-                                    style={{...styles.input, width: '80px', marginBottom: 0}}
-                                    value={q.maxMarks}
-                                    onChange={e => handleQuestionChange(index, 'maxMarks', e.target.value)}
-                                />
+                                <input type="number" placeholder="Marks" style={{...styles.input, width: '80px', marginBottom: 0}} value={q.maxMarks} onChange={e => handleQuestionChange(index, 'maxMarks', e.target.value)} />
                             </div>
-
                             {q.type === 'MCQ' && (
-                                <input 
-                                    style={styles.input}
-                                    placeholder="Options (A,B,C,D)"
-                                    value={q.options}
-                                    onChange={e => handleQuestionChange(index, 'options', e.target.value)}
-                                />
+                                <input style={styles.input} placeholder="Options (A,B,C,D)" value={q.options} onChange={e => handleQuestionChange(index, 'options', e.target.value)} />
                             )}
                         </div>
                     ))}
@@ -293,37 +250,36 @@ const TeacherDashboard = () => {
                     </div>
                 </div>
 
-                {/* RIGHT: HISTORY & ARCHIVES */}
+                {/* --- RIGHT: HISTORY (Dynamic) --- */}
                 <div style={styles.historyCard}>
                     <h2 style={{marginTop: 0, color: '#00f3ff', display:'flex', alignItems:'center', gap:10}}>
                         <Folder size={24} /> Exam History
                     </h2>
                     
-                    {/* Filter Tabs */}
+                    {/* Only show subjects that HAVE exams */}
                     <div style={styles.filterContainer}>
-                        <button 
-                            style={historyFilter === "All" ? styles.filterActive : styles.filterBtn}
-                            onClick={() => setHistoryFilter("All")}
-                        >
-                            All
-                        </button>
-                        {subjects.map(sub => (
-                            <button 
-                                key={sub}
-                                style={historyFilter === sub ? styles.filterActive : styles.filterBtn}
-                                onClick={() => setHistoryFilter(sub)}
-                            >
-                                {sub}
-                            </button>
-                        ))}
+                        {uniqueHistorySubjects.length === 1 ? (
+                            <p style={{color: '#666', fontSize: '0.9rem', fontStyle: 'italic'}}>
+                                No exams created yet.
+                            </p>
+                        ) : (
+                            uniqueHistorySubjects.map(sub => (
+                                <button 
+                                    key={sub} 
+                                    style={historyFilter === sub ? styles.filterActive : styles.filterBtn} 
+                                    onClick={() => setHistoryFilter(sub)}
+                                >
+                                    {sub}
+                                </button>
+                            ))
+                        )}
                     </div>
 
-                    {/* Exam List */}
                     <div style={styles.examList}>
                         {filteredExams.length === 0 ? (
                             <div style={{textAlign:'center', padding: 20, color:'#555'}}>
                                 <BookOpen size={40} style={{marginBottom:10, opacity:0.5}} />
-                                <p>No exams found for {historyFilter}</p>
+                                <p>No exams found.</p>
                             </div>
                         ) : (
                             filteredExams.map(exam => (
@@ -336,12 +292,8 @@ const TeacherDashboard = () => {
                                         </div>
                                     </div>
                                     <div style={{display:'flex', gap: '8px'}}>
-                                        <button onClick={() => copyToClipboard(exam.id)} style={styles.iconBtn} title="Copy ID">
-                                            <Copy size={16} />
-                                        </button>
-                                        <button onClick={() => navigate(`/grade/${exam.id}`)} style={styles.iconBtnPrimary} title="Grade">
-                                            <GraduationCap size={16} />
-                                        </button>
+                                        <button onClick={() => copyToClipboard(exam.id)} style={styles.iconBtn} title="Copy ID"><Copy size={16} /></button>
+                                        <button onClick={() => navigate(`/grade/${exam.id}`)} style={styles.iconBtnPrimary} title="Grade"><GraduationCap size={16} /></button>
                                     </div>
                                 </div>
                             ))

@@ -1,22 +1,21 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import TeacherDashboard from './TeacherDashboard';
 import ExamPage from './ExamPage';
+import GradingDashboard from './GradingDashboard'; // <-- Import the new page
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Route for taking the exam */}
+        {/* 1. Teacher creates the exam here */}
+        <Route path="/" element={<TeacherDashboard />} />
+
+        {/* 2. Student takes the exam here */}
         <Route path="/exam/:examId" element={<ExamPage />} />
 
-        {/* Default Home Page */}
-        <Route path="/" element={
-          <div style={{padding: '50px', textAlign: 'center', fontFamily: 'Arial'}}>
-            <h1>Exam System Running!</h1>
-            <p>To take an exam, you need a link from your teacher.</p>
-            <p style={{color: '#666'}}>Example: /exam/YOUR-UUID-HERE</p>
-          </div>
-        } />
+        {/* 3. Teacher grades the exam here */}
+        <Route path="/grade/:examId" element={<GradingDashboard />} />
       </Routes>
     </BrowserRouter>
   );

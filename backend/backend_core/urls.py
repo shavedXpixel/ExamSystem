@@ -1,10 +1,17 @@
 from django.contrib import admin
-from django.urls import path
-from api import views
+from django.urls import path, include
+from django.http import JsonResponse
+
+# This is the simple function that runs when you visit the main link
+def home(request):
+    return JsonResponse({
+        "status": "online",
+        "message": "Backend is running smoothly!",
+        "system": "ExamSystem API"
+    })
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/exam/<uuid:exam_id>/', views.get_exam),
-    path('api/submit/<uuid:exam_id>/', views.submit_exam),
-    path('api/check/<uuid:exam_id>/', views.check_status),
+    path('api/', include('api.urls')),  # Connects to your API app
+    path('', home),  # <-- This handles the root URL (localhost:8000)
 ]

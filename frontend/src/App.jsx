@@ -3,8 +3,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import TeacherDashboard from './TeacherDashboard';
 import ExamPage from './ExamPage';
 import GradingDashboard from './GradingDashboard';
-import Login from './Login';   // <-- New Import
-import Signup from './Signup'; // <-- New Import
+import Login from './Login';
+import Signup from './Signup';
+import About from './About'; // <-- New Import
 
 function App() {
   return (
@@ -13,10 +14,9 @@ function App() {
         {/* --- Authentication Routes --- */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/about" element={<About />} /> {/* <-- The New Premium About Page */}
 
         {/* --- Protected Route (Teacher Dashboard) --- */}
-        {/* The Dashboard component checks if you are logged in. */}
-        {/* If not, it redirects you to /login automatically. */}
         <Route path="/" element={<TeacherDashboard />} />
 
         {/* --- Student Routes (Public) --- */}

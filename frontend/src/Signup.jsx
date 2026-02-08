@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { auth, db } from './firebaseConfig';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore'; // For saving user data
+import { doc, setDoc } from 'firebase/firestore'; 
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, ArrowLeft, User, Calendar, Building } from 'lucide-react';
+import Modal from './Modal'; // <-- IMPORT MODAL
 
 const Signup = () => {
     const navigate = useNavigate();
     
+    // Modal State
+    const [modal, setModal] = useState({ isOpen: false, type: '', title: '', message: '' });
+
     // Form States
     const [name, setName] = useState('');
     const [college, setCollege] = useState('');
@@ -34,17 +38,45 @@ const Signup = () => {
                 createdAt: new Date()
             });
 
-            alert(`Welcome, Prof. ${name}! Account Created. 🚀`);
-            navigate('/');
+            // Show Success Modal instead of alert
+            setModal({
+                isOpen: true,
+                type: 'success',
+                title: 'Welcome Aboard! 🚀',
+                message: `Account created successfully for Prof. ${name}. You can now login.`
+            });
+
         } catch (error) {
-            alert(error.message);
+            // Show Error Modal
+            setModal({
+                isOpen: true,
+                type: 'error',
+                title: 'Signup Failed',
+                message: error.message
+            });
         } finally {
             setLoading(false);
         }
     };
 
+    // Close modal function
+    const closeModal = () => {
+        setModal({ ...modal, isOpen: false });
+        // If it was a success message, redirect after closing
+        if (modal.type === 'success') navigate('/');
+    };
+
     return (
         <div style={styles.container}>
+            {/* RENDER MODAL HERE */}
+            <Modal 
+                isOpen={modal.isOpen} 
+                type={modal.type} 
+                title={modal.title} 
+                message={modal.message} 
+                onClose={closeModal} 
+            />
+
             <div style={styles.circle1}></div>
             
             <div style={styles.glassCard}>

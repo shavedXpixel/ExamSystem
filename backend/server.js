@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
-const axios = require('axios'); // <--- Import Axios for self-ping
 require('dotenv').config();
 
 const app = express();
@@ -30,9 +29,9 @@ const db = admin.firestore();
 
 // --- ROUTES ---
 
-// 1. Health Check (This is what UptimeRobot pings)
+// 1. Health Check
 app.get('/', (req, res) => {
-  res.status(200).send('Exam System Backend is ONLINE 🚀');
+  res.status(200).send('Exam System Backend is ONLINE on Vercel 🚀');
 });
 
 // 2. Create Exam
@@ -168,25 +167,5 @@ app.get('/api/exams', async (req, res) => {
   }
 });
 
-// --- SERVER START ---
-const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-// --- KEEP-ALIVE MECHANISM (PREVENTS SLEEP) ---
-const SERVER_URL = "https://exam-system-api-fmyy.onrender.com"; // Your Render URL
-
-const reloadWebsite = () => {
-  axios.get(SERVER_URL)
-    .then(response => {
-      console.log(`Reloaded at ${new Date().toISOString()}: Status ${response.status}`);
-    })
-    .catch(error => {
-      console.error(`Reload Error at ${new Date().toISOString()}: ${error.message}`);
-    });
-};
-
-// Ping every 10 minutes (600,000 ms)
-// Render sleeps after 15 mins, so 10 mins is safe.
-setInterval(reloadWebsite, 600000);
+// --- VERCEL SERVERLESS EXPORT ---
+module.exports = app;

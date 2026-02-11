@@ -7,7 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { CheckCircle, Plus, Save, Trash2, ExternalLink, GraduationCap, LogOut, Building, UserPen, Sparkles, FolderClock, Copy } from 'lucide-react';
 
 // CHANGE THIS TO YOUR RENDER URL
-const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
+const API_URL = 'https://exam-system-dfnl.vercel.app/'; 
 
 const TeacherDashboard = () => {
     const navigate = useNavigate();

@@ -5,7 +5,7 @@ import { User, CheckCircle, XCircle, Save, Award, Search, ArrowRight } from 'luc
 import Modal from './Modal'; // <-- Import Custom Modal
 
 // CHANGE THIS TO YOUR RENDER URL
-const API_URL = 'https://exam-system-api-fmyy.onrender.com';
+const API_URL = 'https://exam-system-dfnl.vercel.app/';
 
 const GradingDashboard = () => {
     const { examId } = useParams();

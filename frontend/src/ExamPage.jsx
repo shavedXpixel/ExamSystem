@@ -7,7 +7,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 // CHANGE THIS TO YOUR RENDER URL
-const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
+const API_URL = 'https://exam-system-dfnl.vercel.app/'; 
 
 const ExamPage = () => {
     const { examId } = useParams();

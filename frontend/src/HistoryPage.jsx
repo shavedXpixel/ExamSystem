@@ -6,7 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { Copy, ArrowLeft, Search, GraduationCap, Folder, Filter, BookOpen } from 'lucide-react';
 
 // CHANGE THIS TO YOUR RENDER URL
-const API_URL = 'https://exam-system-api-fmyy.onrender.com'; 
+const API_URL = 'https://exam-system-dfnl.vercel.app/'; 
 
 const HistoryPage = () => {
     const navigate = useNavigate();
